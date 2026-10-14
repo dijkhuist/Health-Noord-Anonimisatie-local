@@ -1,5 +1,7 @@
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
+import os
+import time
 
 def read_text_smart(path: str) -> str:
     data = Path(path).read_bytes()
@@ -80,12 +82,31 @@ def _detect_encoding(path: str, sample_size: int = 4096) -> str:
         return "cp1252"
     
 
-def iter_lines_smart(path: str):
+def iter_lines_smart(
+    path: str,
+    progress_callback: Callable[[int, int], None] | None = None,
+):
     """
     Yield the file's lines one at a time (keeping their line endings), decoding with
     a sniffed encoding, so we never load the whole file into memory.
     """
     enc = _detect_encoding(path)
+    total_bytes = os.path.getsize(path)
+    bom_bytes = {"utf-8-sig": 3, "utf-16": 2, "utf-32": 4}.get(enc, 0)
+    processed_bytes = min(total_bytes, bom_bytes)
+    last_reported = time.monotonic()
     with open(path, "r", encoding=enc, errors="replace", newline="") as f:
         for line in f:
+            if progress_callback:
+                processed_bytes = min(
+                    total_bytes,
+                    processed_bytes + max(0, len(line.encode(enc, errors="replace")) - bom_bytes),
+                )
+                now = time.monotonic()
+                if now - last_reported >= 0.25:
+                    progress_callback(processed_bytes, total_bytes)
+                    last_reported = now
             yield line
+
+    if progress_callback:
+        progress_callback(total_bytes, total_bytes)

@@ -5,7 +5,12 @@ from collections import defaultdict
 
 from .deduce_adapter import get_deduce
 from .stats import RunStats, compute_stats
-from .extra_lists import build_extra_patterns
+from .extra_lists import (
+    build_extra_patterns,
+    build_whitelist_pattern,
+    protect_whitelist_terms,
+    restore_whitelist_terms,
+)
 
 from src.hn_ano_tool.engine.utils import (
     ExtraNamesContext,
@@ -52,7 +57,8 @@ class Anonymizer:
         enabled: set[str] = None,
         disabled: set[str] = None,
         extra_names_path: str | None = None,
-        extra_names_paths: dict[str, str] | None = None
+        extra_names_paths: dict[str, str] | None = None,
+        whitelist_path: str | None = None,
     ):
         self.enabled = enabled
         self.disabled = disabled
@@ -65,6 +71,7 @@ class Anonymizer:
             extra_names_path=extra_names_path,
             extra_names_paths=extra_names_paths,
         )
+        self.whitelist_pattern = build_whitelist_pattern(whitelist_path)
 
 
 
@@ -117,10 +124,13 @@ class Anonymizer:
             yield "".join(buf)
 
     def _process_chunk(self, chunk_text, redactor, extra_ctx, stats) -> str:
-        doc = self.deduce.deidentify(
-            chunk_text, enabled=self.enabled, disabled=self.disabled
+        protected_text, protected_terms = protect_whitelist_terms(
+            chunk_text, self.whitelist_pattern
         )
-        out = redactor.redact(chunk_text, doc.annotations)
+        doc = self.deduce.deidentify(
+            protected_text, enabled=self.enabled, disabled=self.disabled
+        )
+        out = redactor.redact(protected_text, doc.annotations)
 
         if self.extra_names_patterns:
             out = vervang_gemiste_namen_multi_any(
@@ -129,6 +139,8 @@ class Anonymizer:
                 ctx=extra_ctx,
                 order=["persoon", "locatie"],
             )
+
+        out = restore_whitelist_terms(out, protected_terms)
 
         chunk_stats = compute_stats(doc)
         for tag, c in chunk_stats.by_type.items():

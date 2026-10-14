@@ -10,6 +10,10 @@ Runs fully local (no cloud).
 - **Extra .txt lists** to catch missed entities after Deduce:
   - Person names lists (patient + employee) → replaces with <PERSOON_###>
   - Location names list → replaces with <LOCATIE_###>
+- **Whitelist .txt file** for domain terms that must remain unchanged.
+- **Run progress and remaining-time estimate** for long files; file/filter controls are locked during processing.
+- **Pre-run validation and summary** of the input file, size, and output locations.
+- **Saved filter preferences**; no file locations are remembered.
 - **Local processing only** — input text is not uploaded.
 - Writes output **and** a summary **log** file (counts include the extra list replacements).
 
@@ -46,7 +50,16 @@ python run_gui.py
    - patient names
    - employee names
    - location names
-5. Click **Anonimiseer file**.
+5. (Optional) Select a whitelist `.txt` file containing terms to preserve.
+6. Click **Anonimiseer file**.
+
+## Whitelist
+
+Add one term or phrase per line. Matching is case-insensitive and uses whole-term boundaries. A matched phrase is temporarily protected from Deduce and the extra lists, then restored with the spelling used in the input text.
+
+Use the whitelist only for terms you intend to keep in the output; whitelist entries bypass anonymization.
+
+Filter selections are saved locally under `%LOCALAPPDATA%\HealthNoord\AnonymisatieTool`. No file locations are saved: choose the input, output, log, extra-list, and whitelist files or folders again whenever the tool is reopened.
 
 Output is saved as: `<name>_anonymized.txt`  
 Log is saved as: `<name>_log.txt`  
@@ -69,11 +82,9 @@ Mevrouw De Vries
 ## Output and logging
 
 - Output file contains the anonymized text.
-- Log file contains a summary (timestamp + counts).
-- Extra list replacements are included as counters in the log, e.g.:
-  - `extra_patient: 3`
-  - `extra_medewerker: 1`
-  - `extra_locatie: 2`
+- The log records run status, start time and duration, input filename and size, output filename on success, separate active and disabled filter-group lists, whether a whitelist or extra lists were used, and replacement counts split between Deduce and extra lists.
+- Failed and cancelled runs also produce a status log; partial anonymized output is not kept.
+- Logs contain filenames rather than full paths and never include source text, whitelist terms, or list contents.
 
 ## Project structure
 
@@ -167,4 +178,4 @@ Always review the anonymized output before sharing it externally.
 
 ## Author
 
-Jesse Snels — Hanze University of Applied Sciences (Hanzehogeschool Groningen)
+Talko Dijkhuis (op basis van de code van Jesse Snels en Jos Meijer) icm Claude— Hanze University of Applied Sciences (Hanzehogeschool Groningen)

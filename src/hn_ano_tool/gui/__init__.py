@@ -24,6 +24,13 @@ def resource_path(relative_path: str) -> str:
     return os.path.join(base_path, relative_path)
 
 
+def application_directory() -> str:
+    """Return the executable's folder, or the project root when running from source."""
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(os.path.abspath(sys.executable))
+    return str(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+
+
 def apply_hn_theme(root: tk.Tk) -> ttk.Style:
     """
     Pas de Health Noord huisstijl toe op ttk widgets.
@@ -53,6 +60,7 @@ def apply_hn_theme(root: tk.Tk) -> ttk.Style:
     style.configure("HN.Muted.TLabel", background=HN_BG, foreground=HN_MUTED, font=base_font)
     style.configure("HN.CardMuted.TLabel", background=HN_BG, foreground=HN_MUTED, font=base_font)
     style.configure("HN.Card.TLabel", background=HN_BG, foreground=HN_NAVY, font=base_font)
+    style.configure("HN.Link.TLabel", background=HN_BG, foreground="#1769AA", font=base_font, underline=True)
 
     style.configure("HN.Title.TLabel", background=HN_BG, foreground=HN_NAVY, font=title_font)
     style.configure("HN.TitleOrange.TLabel", background=HN_BG, foreground=HN_ORANGE, font=title_font)
@@ -139,5 +147,6 @@ __all__ = [
     "HN_MUTED",
     "HN_DISABLED",
     "resource_path",
+    "application_directory",
     "apply_hn_theme",
 ]

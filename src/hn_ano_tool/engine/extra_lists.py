@@ -1,8 +1,12 @@
 # extra_lists.py
 from __future__ import annotations
 
+import re
+import uuid
 from dataclasses import dataclass
 from typing import Optional
+
+from src.hn_ano_tool.io.text_io import read_text_smart
 
 # import the existing helpers you already use today
 from .utils import (
@@ -124,3 +128,52 @@ def build_extra_patterns(
     """
     cfg = normalize_extra_lists(extra_names_path=extra_names_path, extra_names_paths=extra_names_paths)
     return build_extra_name_patterns(cfg)
+
+
+def build_whitelist_pattern(path: str | None) -> re.Pattern[str] | None:
+    if not path:
+        return None
+
+    terms = read_text_smart(path).splitlines()
+    unique_terms = {}
+    for term in terms:
+        term = term.strip()
+        if term:
+            unique_terms.setdefault(term.casefold(), term)
+
+    if not unique_terms:
+        return None
+
+    alternatives = []
+    for term in sorted(unique_terms.values(), key=len, reverse=True):
+        alternatives.append(r"\s+".join(re.escape(part) for part in term.split()))
+
+    return re.compile(
+        r"(?<!\w)(?:" + "|".join(alternatives) + r")(?!\w)",
+        flags=re.IGNORECASE,
+    )
+
+
+def protect_whitelist_terms(
+    text: str,
+    pattern: re.Pattern[str] | None,
+) -> tuple[str, dict[str, str]]:
+    if pattern is None:
+        return text, {}
+
+    protected: dict[str, str] = {}
+
+    def replace(match: re.Match[str]) -> str:
+        token = "".join(chr(0xE000 + value) for value in uuid.uuid4().bytes)
+        while token in text or token in protected:
+            token = "".join(chr(0xE000 + value) for value in uuid.uuid4().bytes)
+        protected[token] = match.group(0)
+        return token
+
+    return pattern.sub(replace, text), protected
+
+
+def restore_whitelist_terms(text: str, protected: dict[str, str]) -> str:
+    for token, original in protected.items():
+        text = text.replace(token, original)
+    return text
