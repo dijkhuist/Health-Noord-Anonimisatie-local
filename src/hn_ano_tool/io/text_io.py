@@ -1,5 +1,6 @@
 from pathlib import Path
-from typing import Callable, Optional
+from typing import BinaryIO, Callable, Optional
+import codecs
 import os
 import time
 
@@ -54,32 +55,46 @@ def validate_txt_path(path: str) -> Optional[str]:
     return None
 
 
+def _is_valid_utf8(head: bytes, rest: BinaryIO, block_size: int = 1 << 20) -> bool:
+    """
+    Check that `head` plus the remainder of `rest` is valid UTF-8. Decoding
+    incrementally means a multi-byte character split across blocks is fine.
+    """
+    decoder = codecs.getincrementaldecoder("utf-8")()
+    try:
+        decoder.decode(head)
+        while block := rest.read(block_size):
+            decoder.decode(block)
+        decoder.decode(b"", final=True)
+    except UnicodeDecodeError:
+        return False
+    return True
+
+
 def _detect_encoding(path: str, sample_size: int = 4096) -> str:
     """
-    Sniff a file's text encoding from its first bytes (BOM + NUL heuristic).
+    Sniff a file's text encoding: BOM + NUL heuristic on the first bytes, then
+    UTF-8 validation of the WHOLE file (a sample alone can cut a character in
+    half, or miss a cp1252 byte further on), falling back to cp1252.
     """
     with open(path, "rb") as f:
         head = f.read(sample_size)
 
-    if head.startswith(b"\xef\xbb\xbf"):
-        return "utf-8-sig"
-    if head.startswith(b"\xff\xfe\x00\x00") or head.startswith(b"\x00\x00\xfe\xff"):
-        return "utf-32"
-    if head.startswith(b"\xff\xfe") or head.startswith(b"\xfe\xff"):
-        return "utf-16"
-    
-    if head:
-        nul_ratio = head.count(b"\x00") / len(head)
-        if nul_ratio > 0.50:
+        if head.startswith(b"\xef\xbb\xbf"):
+            return "utf-8-sig"
+        if head.startswith(b"\xff\xfe\x00\x00") or head.startswith(b"\x00\x00\xfe\xff"):
             return "utf-32"
-        if nul_ratio > 0.20:
+        if head.startswith(b"\xff\xfe") or head.startswith(b"\xfe\xff"):
             return "utf-16"
-        
-    try:
-        head.decode("utf-8")
-        return "utf-8"
-    except UnicodeDecodeError:
-        return "cp1252"
+
+        if head:
+            nul_ratio = head.count(b"\x00") / len(head)
+            if nul_ratio > 0.50:
+                return "utf-32"
+            if nul_ratio > 0.20:
+                return "utf-16"
+
+        return "utf-8" if _is_valid_utf8(head, f) else "cp1252"
     
 
 def iter_lines_smart(

@@ -51,7 +51,7 @@ python run_gui.py
    - employee names
    - location names
 5. (Optional) Select a whitelist `.txt` file containing terms to preserve.
-6. Click **Anonimiseer file**.
+6. Click **Anonimiseer bestand**.
 
 ## Whitelist
 
@@ -61,8 +61,8 @@ Use the whitelist only for terms you intend to keep in the output; whitelist ent
 
 Filter selections are saved locally under `%LOCALAPPDATA%\HealthNoord\AnonymisatieTool`. No file locations are saved: choose the input, output, log, extra-list, and whitelist files or folders again whenever the tool is reopened.
 
-Output is saved as: `<name>_anonymized.txt`  
-Log is saved as: `<name>_log.txt`  
+Output is saved as: `<name>_anonymized_<timestamp>.txt`  
+Log is saved as: `<name>_log_<timestamp>.txt` (same timestamp, so earlier results are never overwritten)  
 If no log folder is selected, the log is saved in the output folder.
 
 ## Extra lists format

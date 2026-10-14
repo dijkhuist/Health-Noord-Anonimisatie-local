@@ -38,21 +38,18 @@ Mevrouw De Vries
 ## Stappenplan
 
 1. Start `HealthNoordAnonymizer.exe`.
-2. Klik op **📁 Invoer .txt bestand** en selecteer het tekstbestand.
-3. Klik op **📁 Uitvoer locatie** en selecteer de map waar het resultaat opgeslagen moet worden.
-4. (Optioneel) Klik op **📁 Uitvoer locatie log** en selecteer de map voor het logbestand.  
+2. Wacht tot de knop **Anonimiseer bestand** verschijnt (bij het opstarten staat er even *Bezig met initialiseren...*).
+3. Klik op **📁 Invoer .txt** en selecteer het tekstbestand.
+4. Klik op **📁 Uitvoermap** en selecteer de map waar het resultaat opgeslagen moet worden.
+5. (Optioneel) Klik op **📁 Logmap** en selecteer de map voor het logbestand.  
    - Als je dit overslaat, wordt het logbestand in dezelfde map als de uitvoer opgeslagen.
-5. Stel de instellingen in:
-   - **Leeftijdsanonimisatie inschakelen**: aan/uit  
-     - *Het bereik*: standaard 10 (bijv. 34 → 30-40)
-   - **Locatie-precisie aanpassen**: aan/uit  
-     - *precisie*: `GEMEENTE`, `PROVINCIE` of `LAND`
 6. (Optioneel) Voeg extra lijsten toe:
-   - **📁 Invoer .txt patienten-namenbestand**
-   - **📁 Invoer .txt medewerkers-namenbestand**
-   - **📁 Invoer .txt locaties-namenbestand**
-7. (Optioneel) Kies een **📁 Invoerbestand (.txt) whitelist** met termen die behouden moeten blijven.
-8. Stel onder **Filter op** in welke categorieën Deduce moet verwerken.
+   - **📁 Patiëntenlijst**
+   - **📁 Medewerkerslijst**
+   - **📁 Locatielijst**
+7. (Optioneel) Kies met **📁 Whitelist** een bestand met termen die behouden moeten blijven.  
+   Met de knop **✖** naast een keuze maak je die keuze weer leeg.
+8. Vink onder **Filter op** aan welke categorieën Deduce moet anonimiseren: namen, locaties, instellingen, datums, leeftijden, identificatienummers (BSN/ID/patiëntnr), telefoonnummers, e-mailadressen en URL's. Standaard staan alle categorieën aan.
 9. Klik op **Anonimiseer bestand**. De voorcontrole controleert de gekozen bestanden en mappen en toont de invoernaam, bestandsgrootte en uitvoerlocaties. Tijdens de verwerking zijn de bestandskeuzes en filters vergrendeld. De voortgang toont de huidige fase; na ongeveer tien seconden verschijnt ook een resterende-tijdschatting.
 10. Gebruik **Annuleer verwerking** als je wilt stoppen. De huidige tekstchunk wordt eerst afgemaakt; daarna wordt de run gestopt zonder gedeeltelijk uitvoerbestand.
 
@@ -61,11 +58,12 @@ Mevrouw De Vries
 Na het uitvoeren worden twee bestanden weggeschreven:
 
 1) **Geanonimiseerde tekst**
-- Naam: `<invoernaam>_anonymized.txt`
+- Naam: `<invoernaam>_anonymized_<tijdstempel>.txt`, bijv. `verslag_anonymized_2026_10_14_H14_M39_S57_123456.txt`
+- Door de tijdstempel wordt een eerder resultaat nooit overschreven
 - Locatie: in de gekozen uitvoermap
 
 2) **Logbestand**
-- Naam: `<invoernaam>_log.txt`
+- Naam: `<invoernaam>_log_<tijdstempel>.txt` (zelfde tijdstempel als het resultaat)
 - Locatie: in de gekozen logmap (of uitvoermap als geen logmap is gekozen)
 
 Na een geslaagde run verschijnt automatisch een scrollbaar venster met de volledige logresultaten. Je kunt dit sluiten met **Sluiten**, `Esc` of het kruisje. Met **Open resultaat** open je het geanonimiseerde bestand; **Open uitvoermap** opent de map. De getoonde uitvoer- en logpaden zijn ook aanklikbaar.
@@ -73,10 +71,11 @@ Na een geslaagde run verschijnt automatisch een scrollbaar venster met de volled
 Filterkeuzes worden lokaal onthouden. Bestandspaden worden niet onthouden: selecteer na het opnieuw openen van de tool het invoerbestand, de uitvoer- en logmap, eventuele extra lijsten en de whitelist opnieuw.
 
 ### Wat betekenen de placeholders?
-- Deduce vervangt standaard herkende entiteiten (bijv. personen/BSN/e-mail etc.) volgens Deduce’s tagging.
-- Extra lijsten (als opgegeven) vervangen gemiste items met:
-  - extra_patient, extra_medewerker -> `<PATIENT_001>`, `<PATIENT_002>`, …
-  - extra_locatie -> `<LOCATIE_001>`, …
+- Deduce vervangt herkende gegevens door een code tussen blokhaken met het type en een volgnummer, bijv. `[PERSOON-1]`, `[LOCATIE-2]` of `[DATUM-3]`.
+- Extra lijsten (als opgegeven) vervangen wat Deduce heeft gemist door een code tussen punthaken:
+  - patiënten- en medewerkerslijst -> `<PERSOON_001>`, `<PERSOON_002>`, …
+  - locatielijst -> `<LOCATIE_001>`, …
+- Dezelfde naam of waarde krijgt binnen één run overal dezelfde code. Zo blijft leesbaar dat het om dezelfde persoon gaat.
 
 Het log bevat de runstatus, starttijd en duur, invoernaam en grootte, actieve filtergroepen, of whitelist/extra lijsten zijn gebruikt, en vervangingstotalen apart voor Deduce en extra lijsten plus aantallen per type. Ook mislukte en geannuleerde runs krijgen een log; gedeeltelijke uitvoer wordt niet bewaard. Logs bevatten geen volledige paden, bronfragmenten, whitelist-termen of lijstinhoud.
 
@@ -84,12 +83,12 @@ Het log bevat de runstatus, starttijd en duur, invoernaam en grootte, actieve fi
 
 - Controleer de output steekproefsgewijs (AVG/GDPR): extra lijsten zijn een aanvullende vangnet-stap, geen 100% garantie.
 - Voeg varianten toe aan je extra lijsten (bijv. volledige naam en veelgebruikte afkorting) als dezelfde persoon op verschillende manieren wordt genoemd.
-- Voor locaties werkt een extra locaties-lijst het best als de schrijfwijze in de tekst overeenkomt met de lijst (bijv. “Drachten” vs “drachten”).
+- Hoofdletters maken voor de lijsten niet uit, maar andere schrijfwijzen wel: zet ook varianten in de locatielijst (bijv. “Sint Jacobiparochie” én “St. Jacobiparochie”).
 
 ## Probleemoplossing
 
-**“Please select both input file and output folder.”**  
-Je hebt nog geen invoerbestand en/of uitvoermap gekozen.
+**Melding bij de voorcontrole (bijv. “Invoerbestand: selecteer een bestand.” of “Uitvoermap: map is niet beschrijfbaar.”)**  
+De voorcontrole noemt per bestand of map wat er mis is: niets gekozen, geen `.txt`-bestand, bestand bestaat niet of kan niet gelezen worden, of de map is niet beschrijfbaar. Pas de genoemde keuze aan en klik opnieuw op **Anonimiseer bestand**.
 
 **Geen logmap gekozen**  
 Dat is toegestaan; het log wordt dan in de uitvoermap opgeslagen.
