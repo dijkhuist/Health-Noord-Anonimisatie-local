@@ -14,6 +14,15 @@ from docx.shared import Inches, Pt, RGBColor
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_PATH = ROOT / "Gebruiksaanwijzing_HealthNoord.docx"
 LOGO_PATH = ROOT / "assets" / "hoofdlogo-healthNoord.png"
+SCREENSHOT_DIR = ROOT / "docs" / "handleiding"
+# Figure label -> screenshot file in SCREENSHOT_DIR (all made with synthetic data).
+SCREENSHOTS = {
+    "Hoofdscherm": "hoofdscherm.png",
+    "Bestandskeuze en voorcontrole": "bestandskeuze_voorcontrole.png",
+    "Filtergroepen en lijsten": "filtergroepen_lijsten.png",
+    "Voortgang tijdens verwerking": "voortgang.png",
+    "Resultatenvenster en log": "resultatenvenster_log.png",
+}
 
 NAVY = "1F2D54"
 ORANGE = "EA590C"
@@ -127,6 +136,23 @@ def add_callout(document: Document, title: str, text: str, warning: bool = False
     heading.font.color.rgb = RGBColor.from_string(ORANGE if warning else NAVY)
     paragraph.add_run(text)
     document.add_paragraph().paragraph_format.space_after = Pt(0)
+
+
+def add_screenshot(document: Document, label: str, instructions: str) -> None:
+    """Insert the screenshot for `label` from SCREENSHOT_DIR, or a placeholder if it is missing."""
+    image_path = SCREENSHOT_DIR / SCREENSHOTS.get(label, "")
+    if image_path.is_file():
+        paragraph = document.add_paragraph()
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        paragraph.add_run().add_picture(str(image_path), width=Inches(6.5))
+    else:
+        add_screenshot_placeholder(document, label, instructions)
+        return
+    caption = document.add_paragraph(f"Figuur: {label}")
+    caption.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    caption.style = document.styles["Caption"]
+    caption.runs[0].italic = True
+    caption.runs[0].font.color.rgb = RGBColor.from_string(MID_GREY)
 
 
 def add_screenshot_placeholder(document: Document, label: str, instructions: str) -> None:
@@ -288,7 +314,7 @@ def build_manual() -> Path:
         "De hoofdschermindeling bestaat uit een bestandsgedeelte, filterinstellingen, runbediening en een resultaatvoorbeeld. "
         "Bestandsdialogen openen telkens in de map waar de applicatie staat."
     )
-    add_screenshot_placeholder(
+    add_screenshot(
         document,
         "Hoofdscherm",
         "Voeg hier een afbeelding in van het volledige hoofdvenster. Houd bestandsnamen en voorbeeldtekst niet-persoonlijk.",
@@ -320,12 +346,12 @@ def build_manual() -> Path:
         "Bevestig de start. Tijdens de verwerking worden bestandskeuzes en filters vergrendeld om wijzigingen midden in een run te voorkomen.",
     ]:
         add_number(document, step)
-    add_screenshot_placeholder(
+    add_screenshot(
         document,
         "Bestandskeuze en voorcontrole",
         "Voeg hier een screenshot toe met voorbeeldbestanden en de bevestiging voor de start. Gebruik uitsluitend synthetische namen.",
     )
-    add_screenshot_placeholder(
+    add_screenshot(
         document,
         "Filtergroepen en lijsten",
         "Voeg hier een screenshot toe van de filtergroepcheckboxes en geselecteerde lijstsoorten; scherm persoonlijke bestandspaden af.",
@@ -347,7 +373,7 @@ def build_manual() -> Path:
         "Tijdens de run toont de statusregel de actuele fase, zoals tekst verwerken of uitvoer opslaan. De voortgangsbalk is gebaseerd op de invoerbytes. "
         "Na voldoende meettijd verschijnt een schatting van de resterende tijd; dit blijft een benadering, omdat tekstinhoud de herkenningstijd beïnvloedt."
     )
-    add_screenshot_placeholder(
+    add_screenshot(
         document,
         "Voortgang tijdens verwerking",
         "Voeg hier een screenshot toe van een actieve run met fase, percentage en resttijd. Gebruik een niet-gevoelig voorbeeld.",
@@ -378,7 +404,7 @@ def build_manual() -> Path:
         "Onderin open je met Open resultaat het bestand, met Open uitvoermap de map en met Open log het logbestand. Sluit het met Sluiten, Escape of het kruisje. "
         "Daarna blijven dezelfde acties beschikbaar als kleine links (Resultaat · Uitvoermap · Log) rechts op de statusregel, tot je een nieuwe run start."
     )
-    add_screenshot_placeholder(
+    add_screenshot(
         document,
         "Resultatenvenster en log",
         "Voeg hier een screenshot toe van het resultatenvenster met synthetische metadata en tellingen. Verwijder eventuele gebruikersnamen of gevoelige paden.",
