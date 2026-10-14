@@ -66,7 +66,7 @@ Na het uitvoeren worden twee bestanden weggeschreven:
 - Naam: `<invoernaam>_log_<tijdstempel>.txt` (zelfde tijdstempel als het resultaat)
 - Locatie: in de gekozen logmap (of uitvoermap als geen logmap is gekozen)
 
-Na een geslaagde run verschijnt automatisch een scrollbaar venster met de volledige logresultaten. Je kunt dit sluiten met **Sluiten**, `Esc` of het kruisje. Met **Open resultaat** open je het geanonimiseerde bestand; **Open uitvoermap** opent de map. De getoonde uitvoer- en logpaden zijn ook aanklikbaar.
+Na een geslaagde run verschijnt automatisch een scrollbaar venster met de volledige logresultaten, waaronder per filtergroep of die aan of uit stond. Onderin dat venster open je met **Open resultaat** het geanonimiseerde bestand, met **Open uitvoermap** de map en met **Open log** het logbestand. Sluit het venster met **Sluiten**, `Esc` of het kruisje. Daarna blijven dezelfde drie acties beschikbaar als kleine links (**Resultaat · Uitvoermap · Log**) rechts op de statusregel onder de oranje knop, tot je een nieuwe run start.
 
 Filterkeuzes worden lokaal onthouden. Bestandspaden worden niet onthouden: selecteer na het opnieuw openen van de tool het invoerbestand, de uitvoer- en logmap, eventuele extra lijsten en de whitelist opnieuw.
 
@@ -77,7 +77,7 @@ Filterkeuzes worden lokaal onthouden. Bestandspaden worden niet onthouden: selec
   - locatielijst -> `<LOCATIE_001>`, …
 - Dezelfde naam of waarde krijgt binnen één run overal dezelfde code. Zo blijft leesbaar dat het om dezelfde persoon gaat.
 
-Het log bevat de runstatus, starttijd en duur, invoernaam en grootte, actieve filtergroepen, of whitelist/extra lijsten zijn gebruikt, en vervangingstotalen apart voor Deduce en extra lijsten plus aantallen per type. Ook mislukte en geannuleerde runs krijgen een log; gedeeltelijke uitvoer wordt niet bewaard. Logs bevatten geen volledige paden, bronfragmenten, whitelist-termen of lijstinhoud.
+Het log bevat de runstatus, starttijd en duur, invoernaam en grootte, de actieve en uitgeschakelde filtergroepen (elk op een eigen regel), of whitelist/extra lijsten zijn gebruikt, en vervangingstotalen apart voor Deduce en extra lijsten plus aantallen per type. Ook mislukte en geannuleerde runs krijgen een log; gedeeltelijke uitvoer wordt niet bewaard. Logs bevatten geen volledige paden, bronfragmenten, whitelist-termen of lijstinhoud.
 
 ## Praktische tips
 

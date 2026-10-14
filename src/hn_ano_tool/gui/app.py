@@ -16,6 +16,9 @@ from src.hn_ano_tool.gui import (
     apply_hn_theme,
     resource_path,
     application_directory,
+    enable_dpi_awareness,
+    make_check_images,
+    ui_scale,
     HN_BG,
     HN_SURFACE,
     HN_NAVY,
@@ -24,6 +27,7 @@ from src.hn_ano_tool.gui import (
 from src.hn_ano_tool.gui.preferences import load_preferences, save_preferences
 from src.hn_ano_tool.gui.preflight import validate_run_paths
 MIN_FILTER_KOLOM_PX = 380
+LOGO_HEIGHTS = (64, 80, 96, 128, 160, 192)
 
 
 def _work_area(root: tk.Misc) -> tuple[int, int, int, int]:
@@ -58,6 +62,7 @@ class _Tooltip:
         x = self.widget.winfo_rootx()
         y = self.widget.winfo_rooty() + self.widget.winfo_height() + 4
         self.tip.wm_geometry(f"+{x}+{y}")
+        scale = ui_scale(self.widget)
         tk.Label(
             self.tip,
             text=text,
@@ -65,8 +70,8 @@ class _Tooltip:
             fg=HN_NAVY,
             relief="solid",
             borderwidth=1,
-            padx=6,
-            pady=3,
+            padx=round(6 * scale),
+            pady=round(3 * scale),
         ).pack()
 
     def _hide(self, _event):
@@ -83,7 +88,10 @@ class App(tk.Tk):
                 )
             except (AttributeError, OSError):
                 pass
+        enable_dpi_awareness()
         super().__init__()
+        # All pixel sizes below are design pixels at 100% scaling; _px() scales them.
+        self._scale = ui_scale(self)
 
         self._run_active = False
         self._cancel_requested = False
@@ -103,8 +111,10 @@ class App(tk.Tk):
         ico_path = resource_path("assets/health_noord.ico")
         fallback_ico_path = resource_path("assets/favicon.ico")
         png_path = resource_path("assets/favicon.png")
-        # Pre-scaled with Lanczos: Tk's subsample() skips pixels and makes the tagline jagged.
-        logo_path = resource_path("assets/hoofdlogo-healthNoord-klein.png")
+        # Logo variants pre-scaled with Lanczos (Tk's subsample() skips pixels and makes
+        # the tagline jagged); pick the one closest to 64 design pixels on this screen.
+        logo_height = min(LOGO_HEIGHTS, key=lambda h: abs(h - 64 * self._scale))
+        logo_path = resource_path(f"assets/hoofdlogo-healthNoord-{logo_height}.png")
 
         # 1) Prefer .ico for Windows titlebar/taskbar
         try:
@@ -135,12 +145,12 @@ class App(tk.Tk):
         base_font = ("Segoe UI", 11)
 
         # --- Main container ---
-        main = ttk.Frame(self, padding=(18, 12, 18, 12), style="App.TFrame")
+        main = ttk.Frame(self, padding=self._px(18, 12, 18, 12), style="App.TFrame")
         main.pack(fill="both", expand=True)
 
-        # Header: small logo with the title next to it, on one row
+        # Header: logo; the title sits next to the "Verplicht" heading
         header = ttk.Frame(main, style="App.TFrame")
-        header.pack(fill="x", pady=(0, 10))
+        header.pack(fill="x", pady=self._px(0, 6))
 
         self._hn_logo_img = None
         try:
@@ -154,38 +164,49 @@ class App(tk.Tk):
             ttk.Label(header, text="Health ", style="HN.Title.TLabel").pack(side="left")
             ttk.Label(header, text="Noord", style="HN.TitleOrange.TLabel").pack(side="left")
 
-        title_col = ttk.Frame(header, style="App.TFrame")
-        title_col.pack(side="left", padx=(18, 0))
-        ttk.Label(title_col, text="Tekst-anonimisatie", style="HN.SubTitle.TLabel").pack(anchor="w")
-        ttk.Label(
-            title_col,
-            text="Kies een invoerbestand en uitvoermap, en eventueel extra lijsten.",
-            style="HN.Muted.TLabel",
-        ).pack(anchor="w")
-
         # --- Upper content: 2 columns ---
         upper = ttk.Frame(main, style="App.TFrame")
         upper.pack(fill="x", expand=False)
 
         upper.grid_columnconfigure(0, weight=2, uniform="cols")
-        upper.grid_columnconfigure(1, weight=1, uniform="cols", minsize=MIN_FILTER_KOLOM_PX)
+        upper.grid_columnconfigure(1, weight=1, uniform="cols", minsize=self._px(MIN_FILTER_KOLOM_PX))
         upper.grid_rowconfigure(0, weight=1)
 
         left_col = ttk.Frame(upper, style="App.TFrame")
         right_col = ttk.Frame(upper, style="App.TFrame")
 
-        left_col.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
-        right_col.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+        left_col.grid(row=0, column=0, sticky="nsew", padx=self._px(0, 10))
+        right_col.grid(row=0, column=1, sticky="nsew", padx=self._px(10, 0))
 
         # === LEFT COLUMN ===
         # attr name -> (path label, clear button, placeholder text)
         self._path_rows: dict[str, tuple[ttk.Label, ttk.Button, str]] = {}
         self._full_paths: dict[str, str] = {}
 
-        frm_required = ttk.Labelframe(left_col, text="Verplicht", style="Card.TLabelframe", padding=(14, 8))
+        # Frame title "Verplicht" with the tool's title and instruction on the same
+        # line, so no separate rows are needed above the frames.
+        required_title = ttk.Frame(left_col, style="App.TFrame")
+        # Explicit font: the "*Font" option set by the theme overrides a style's font.
+        ttk.Label(
+            required_title, text="Verplicht", style="HN.Group.TLabel", font=("Segoe UI", 12, "bold")
+        ).pack(side="left")
+        ttk.Label(required_title, text="Tekst-anonimisatie:", style="TLabel").pack(
+            side="left", padx=self._px(24, 6)
+        )
+        ttk.Label(
+            required_title,
+            text="kies een invoerbestand en uitvoermap. Daarna eventueel extra lijsten.",
+            style="HN.Muted.TLabel",
+        ).pack(side="left")
+        frm_required = ttk.Labelframe(
+            left_col,
+            labelwidget=required_title,
+            style="Card.TLabelframe",
+            padding=self._px(12, 4),
+        )
         frm_required.pack(fill="x")
-        frm_optional = ttk.Labelframe(left_col, text="Optioneel", style="Card.TLabelframe", padding=(14, 8))
-        frm_optional.pack(fill="both", expand=True, pady=(10, 0))
+        frm_optional = ttk.Labelframe(left_col, text="Optioneel", style="Card.TLabelframe", padding=self._px(12, 4))
+        frm_optional.pack(fill="both", expand=True, pady=self._px(10, 0))
         for frame in (frm_required, frm_optional):
             frame.grid_columnconfigure(1, weight=1)
 
@@ -219,39 +240,47 @@ class App(tk.Tk):
         )
 
         # === RIGHT COLUMN ===
-        frm_filters = ttk.Labelframe(right_col, text="Filter op", style="Card.TLabelframe", padding=14)
+        frm_filters = ttk.Labelframe(right_col, text="Filter op", style="Card.TLabelframe", padding=self._px(14))
         frm_filters.pack(fill="both", expand=True)
 
         self.filter_vars: dict[str, tk.BooleanVar] = {}
         disabled_groups = set(self._preferences.get("disabled_groups", []))
 
+        self._check_images = make_check_images(self)  # keep a reference for Tk
         row = 0
         for key, label in DEDUCE_FILTER_GROUPS.items():
             var = tk.BooleanVar(value=key not in disabled_groups)
-            # Classic tk.Checkbutton: on Windows it draws the native box with a
-            # tick, where ttk's "clam" theme draws a cross that reads as "off".
+            # Own tick images instead of ttk "clam" (draws a cross that reads as "off")
+            # or the native box (does not scale with DPI).
             chk = tk.Checkbutton(
                 frm_filters,
-                text=label,
+                text=" " + label,
                 variable=var,
                 command=self._save_preferences,
+                image=self._check_images[0],
+                selectimage=self._check_images[1],
+                compound="left",
+                indicatoron=False,
                 anchor="w",
                 bg=HN_BG,
                 fg=HN_NAVY,
                 activebackground=HN_BG,
                 activeforeground=HN_NAVY,
-                selectcolor="white",
+                selectcolor=HN_BG,
+                relief="flat",
+                offrelief="flat",
+                overrelief="flat",
                 highlightthickness=0,
                 borderwidth=0,
                 font=base_font,
             )
-            chk.grid(row=row, column=0, sticky="w", padx=6, pady=3)
+            chk.grid(row=row, column=0, sticky="w", padx=self._px(6), pady=self._px(2))
             self.filter_vars[key] = var
             row += 1
 
         # --- Run button full width ---
         run_frame = ttk.Frame(main, style="App.TFrame")
-        run_frame.pack(fill="x", pady=(12, 6))
+        run_frame.pack(fill="x", pady=self._px(12, 6))
 
         self.btn_run = ttk.Button(run_frame, text="⏳ Bezig met initialiseren...", style="Primary.TButton", command=self.run)
         self.btn_run.pack(side="left", fill="x", expand=True)
@@ -263,75 +292,44 @@ class App(tk.Tk):
             command=self.cancel_run,
             state="disabled",
         )
-        self.btn_cancel.pack(side="left", padx=(8, 0))
+        self.btn_cancel.pack(side="left", padx=self._px(8, 0))
 
         # progress UI
         self.progressbar = ttk.Progressbar(main, mode="determinate", style="HN.Horizontal.TProgressbar")
-        self.progressbar.pack(fill="x", pady=(6, 0))
+        self.progressbar.pack(fill="x", pady=self._px(6, 0))
 
-        self.progress_label = ttk.Label(main, text="", style="HN.Muted.TLabel")
-        self.progress_label.pack(anchor="w", pady=(3, 8))
+        status_row = ttk.Frame(main, style="App.TFrame")
+        status_row.pack(fill="x", pady=self._px(3, 8))
+        self.progress_label = ttk.Label(status_row, text="", style="HN.Muted.TLabel")
+        self.progress_label.pack(side="left")
 
-        # Result summary is packed at the bottom BEFORE the preview, so on a small
-        # screen the preview shrinks instead of these lines falling off the window.
-        result_frame = ttk.Frame(main, style="App.TFrame")
-        result_frame.pack(side="bottom", fill="x")
-
-        self.lbl_stats = ttk.Label(result_frame, text="", anchor="w", style="HN.Muted.TLabel")
-        self.lbl_stats.pack(fill="x", pady=(4, 0))
-        self.lbl_output_location = ttk.Label(
-            result_frame,
-            text="",
-            style="HN.Link.TLabel",
-            cursor="hand2",
-            takefocus=True,
-            wraplength=1100,
-            justify="left",
+        # Small links to the last run's files; only shown after a successful run.
+        self.result_links = ttk.Frame(status_row, style="App.TFrame")
+        links = (
+            ("Resultaat", self.open_output),
+            ("Uitvoermap", self.open_output_folder),
+            ("Log", self.open_log),
         )
-        self.lbl_output_location.pack(fill="x", anchor="w")
-        self.lbl_output_location.bind("<Button-1>", lambda _event: self.open_output())
-        self.lbl_output_location.bind("<Return>", lambda _event: self.open_output())
-        self.lbl_output_location.bind("<space>", lambda _event: self.open_output())
-        self.lbl_log_location = ttk.Label(
-            result_frame,
-            text="",
-            style="HN.Link.TLabel",
-            cursor="hand2",
-            takefocus=True,
-            wraplength=1100,
-            justify="left",
-        )
-        self.lbl_log_location.pack(fill="x", anchor="w")
-        self.lbl_log_location.bind("<Button-1>", lambda _event: self.open_log())
-        self.lbl_log_location.bind("<Return>", lambda _event: self.open_log())
-        self.lbl_log_location.bind("<space>", lambda _event: self.open_log())
+        for index, (text, command) in enumerate(links):
+            if index:
+                ttk.Label(self.result_links, text=" · ", style="HN.Muted.TLabel").pack(side="left")
+            link = ttk.Label(
+                self.result_links, text=text, style="HN.Link.TLabel", cursor="hand2", takefocus=True
+            )
+            link.pack(side="left")
+            for sequence in ("<Button-1>", "<Return>", "<space>"):
+                link.bind(sequence, lambda _event, command=command: command())
 
         # --- Output preview ---
         preview_frame = ttk.Frame(main, style="App.TFrame")
         preview_frame.pack(fill="both", expand=True)
 
-        preview_header = ttk.Frame(preview_frame, style="App.TFrame")
-        preview_header.pack(fill="x", pady=(0, 6))
-        ttk.Label(preview_header, text="Geanonimiseerde tekst:", style="TLabel").pack(side="left")
-        self.btn_open_output = ttk.Button(
-            preview_header,
-            text="Open resultaat",
-            style="Secondary.TButton",
-            command=self.open_output,
-            state="disabled",
+        ttk.Label(preview_frame, text="Geanonimiseerde tekst:", style="TLabel").pack(
+            anchor="w", pady=self._px(0, 6)
         )
-        self.btn_open_output.pack(side="right")
-        self.btn_open_folder = ttk.Button(
-            preview_header,
-            text="Open uitvoermap",
-            style="Secondary.TButton",
-            command=self.open_output_folder,
-            state="disabled",
-        )
-        self.btn_open_folder.pack(side="right", padx=(0, 8))
 
         output_frame = ttk.Frame(preview_frame, style="App.TFrame")
-        output_frame.pack(fill="both", expand=True, padx=0, pady=(0, 6))
+        output_frame.pack(fill="both", expand=True, padx=self._px(0), pady=self._px(0, 6))
 
         self.txt_out = tk.Text(
             output_frame,
@@ -344,8 +342,8 @@ class App(tk.Tk):
             relief="flat",
             highlightthickness=1,
             highlightbackground=HN_BORDER,
-            padx=12,
-            pady=10,
+            padx=self._px(12),
+            pady=self._px(6),
             state="disabled",
         )
         output_scrollbar = ttk.Scrollbar(
@@ -391,12 +389,12 @@ class App(tk.Tk):
             style="Secondary.TButton",
             width=18,
             command=command,
-        ).grid(row=row, column=0, sticky="w", pady=4)
+        ).grid(row=row, column=0, sticky="w", pady=self._px(2))
 
         # width=1: the label takes the space the grid gives it instead of
         # stretching the column to fit a long path.
         label = ttk.Label(parent, text=default_text, style="HN.CardMuted.TLabel", anchor="w", width=1)
-        label.grid(row=row, column=1, sticky="ew", padx=10)
+        label.grid(row=row, column=1, sticky="ew", padx=self._px(10))
         _Tooltip(label, lambda: self._full_paths.get(attr_name))
 
         clear_button = ttk.Button(
@@ -433,22 +431,27 @@ class App(tk.Tk):
         label.config(text=default_text, style="HN.CardMuted.TLabel")
         clear_button.grid_remove()
 
+    def _px(self, *values: int):
+        """Scale design pixels (sizes at 100% Windows scaling) to screen pixels."""
+        scaled = tuple(round(v * self._scale) for v in values)
+        return scaled[0] if len(scaled) == 1 else scaled
+
     def _fit_to_screen(self):
-        """Size the window to its content, but never beyond the screen's work area."""
+        """
+        Use the full height of the screen's work area, so the preview of the
+        anonymized text gets all the room that is left; width follows the content.
+        """
         self.update_idletasks()
         left, top, right, bottom = _work_area(self)
-        scale = self.winfo_fpixels("1i") / 96
-        frame = int(40 * scale)  # title bar + window borders
+        frame = self._px(40)  # title bar + window borders
         available_width = right - left - frame
         available_height = bottom - top - frame
 
-        width = min(max(self.winfo_reqwidth(), int(1200 * scale)), available_width)
-        # Room for a taller preview when the screen has it.
-        height = min(self.winfo_reqheight() + int(200 * scale), available_height)
-        self.minsize(min(int(900 * scale), width), min(self.winfo_reqheight(), height))
+        width = min(max(self.winfo_reqwidth(), self._px(1200)), available_width)
+        height = available_height
+        self.minsize(min(self._px(900), width), min(self.winfo_reqheight(), height))
         x = left + max(0, (right - left - width) // 2)
-        y = top + max(0, (bottom - top - height - frame) // 2)
-        self.geometry(f"{width}x{height}+{x}+{y}")
+        self.geometry(f"{width}x{height}+{x}+{top}")
 
     def _save_preferences(self):
         disabled_groups = {key for key, var in self.filter_vars.items() if not var.get()}
@@ -473,9 +476,9 @@ class App(tk.Tk):
         self.btn_cancel.configure(
             state="normal" if self._run_active and not self._cancel_requested else "disabled"
         )
-        result_state = "normal" if enabled and self._last_output_path else "disabled"
-        self.btn_open_output.configure(state=result_state)
-        self.btn_open_folder.configure(state=result_state)
+        if not self._run_active:
+            # A finished run leaves "Afronden..." / "Annuleren..." behind otherwise.
+            self.btn_cancel.configure(text="Annuleer verwerking")
 
     @staticmethod
     def _format_duration(seconds: float) -> str:
@@ -539,11 +542,18 @@ class App(tk.Tk):
 
         popup = tk.Toplevel(self)
         popup.title("Resultaten van de anonimisatie")
-        popup.geometry("720x520")
+        # Tall enough for the whole log (one line per filter group), within the screen.
+        # Centred over the main window.
+        _, top, _, bottom = _work_area(self)
+        width = self._px(760)
+        height = min(self._px(760), bottom - top - self._px(60))
+        x = self.winfo_rootx() + (self.winfo_width() - width) // 2
+        y = max(top, self.winfo_rooty() + (self.winfo_height() - height) // 2)
+        popup.geometry(f"{width}x{height}+{x}+{y}")
         popup.transient(self)
-        popup.minsize(560, 360)
+        popup.minsize(*self._px(560, 360))
 
-        body = ttk.Frame(popup, padding=14)
+        body = ttk.Frame(popup, padding=self._px(14))
         body.pack(fill="both", expand=True)
         body.grid_columnconfigure(0, weight=1)
         body.grid_rowconfigure(0, weight=1)
@@ -554,10 +564,16 @@ class App(tk.Tk):
         log_text.insert("1.0", log_contents)
         log_text.configure(state="disabled")
         log_text.grid(row=0, column=0, sticky="nsew")
-        scrollbar.grid(row=0, column=1, sticky="ns", padx=(6, 0))
+        scrollbar.grid(row=0, column=1, sticky="ns", padx=self._px(6, 0))
 
         footer = ttk.Frame(body)
-        footer.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        footer.grid(row=1, column=0, columnspan=2, sticky="ew", pady=self._px(10, 0))
+        for text, command in (
+            ("Open resultaat", self.open_output),
+            ("Open uitvoermap", self.open_output_folder),
+            ("Open log", self.open_log),
+        ):
+            ttk.Button(footer, text=text, command=command).pack(side="left", padx=self._px(0, 8))
         close_button = ttk.Button(
             footer,
             text="Sluiten",
@@ -705,15 +721,13 @@ class App(tk.Tk):
         self._current_phase = "Verwerking voorbereiden"
         self._last_output_path = None
         self._last_log_path = None
-        self.lbl_output_location.configure(text="")
-        self.lbl_log_location.configure(text="")
+        self.result_links.pack_forget()
         self._set_controls_enabled(False)
         self.btn_run.config(text="Anonimiseren...")
         self.btn_cancel.configure(text="Annuleer verwerking", state="normal")
         self.txt_out.configure(state="normal")
         self.txt_out.delete("1.0", "end")
         self.txt_out.configure(state="disabled")
-        self.lbl_stats.config(text="")
         self.progressbar.stop()
         self.progressbar.config(mode="determinate", maximum=max(total_bytes, 1))
         self.progressbar["value"] = 0
@@ -813,6 +827,7 @@ class App(tk.Tk):
                     self.progressbar["value"] = self.progressbar["maximum"]
                     self._last_output_path = out_path
                     self._last_log_path = log_path
+                    self.result_links.pack(side="right")
                     self._run_active = False
                     self._cancel_event = None
                     self._cancel_requested = False
@@ -825,13 +840,6 @@ class App(tk.Tk):
                     self.txt_out.insert("end", out_text) # already bounded by the controller
                     self.txt_out.configure(state="disabled")
 
-                    details = " · ".join(
-                        f"{key} {value}" for key, value in sorted(stats.by_type.items())
-                    )
-                    summary = f"{stats.total} vervangen"
-                    self.lbl_stats.config(text=f"{summary} | {details}" if details else summary)
-                    self.lbl_output_location.configure(text=f"Uitvoerbestand: {out_path}")
-                    self.lbl_log_location.configure(text=f"Logbestand: {log_path}")
                     self._show_run_log_popup(log_path)
 
                 elif msg[0] == "run_cancelled":

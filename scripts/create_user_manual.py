@@ -374,8 +374,9 @@ def build_manual() -> Path:
     )
     document.add_heading("Resultatenvenster", level=2)
     document.add_paragraph(
-        "Na succes verschijnt automatisch een scrollbaar venster met de volledige logresultaten. Sluit het met Sluiten, Escape of het kruisje. "
-        "Gebruik Open resultaat om het bestand te openen en Open uitvoermap om de uitvoermap te bekijken. De weergegeven uitvoer- en logpaden zijn ook aanklikbaar."
+        "Na succes verschijnt automatisch een scrollbaar venster met de volledige logresultaten, waaronder per filtergroep of die aan of uit stond. "
+        "Onderin open je met Open resultaat het bestand, met Open uitvoermap de map en met Open log het logbestand. Sluit het met Sluiten, Escape of het kruisje. "
+        "Daarna blijven dezelfde acties beschikbaar als kleine links (Resultaat · Uitvoermap · Log) rechts op de statusregel, tot je een nieuwe run start."
     )
     add_screenshot_placeholder(
         document,
@@ -390,7 +391,7 @@ def build_manual() -> Path:
             ["Status", "Geslaagd, Geannuleerd of Mislukt."],
             ["Starttijd en duur", "Wanneer de run begon en hoeveel seconden deze duurde."],
             ["Bestandsmetadata", "Invoerbestandsnaam, grootte en bij succes uitvoernaam; geen volledige paden."],
-            ["Instellingen", "Actieve filtergroepen en alleen de ja/nee-status voor whitelist en extra lijsten."],
+            ["Instellingen", "Actieve en uitgeschakelde filtergroepen en alleen de ja/nee-status voor whitelist en extra lijsten."],
             ["Vervangingstotalen", "Deduce-vervangingen, extra-lijstvervangingen en hun som."],
             ["Per type", "Aantallen per herkenningstype, bijvoorbeeld BSN, persoon of extra locatie."],
             ["Foutdetails", "Bij mislukking een foutcategorie en korte, waar mogelijk padgemaskeerde melding."],
