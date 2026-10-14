@@ -1,4 +1,5 @@
 import ctypes
+import ctypes.wintypes
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import threading
@@ -15,6 +16,7 @@ from src.hn_ano_tool.gui import (
     apply_hn_theme,
     resource_path,
     application_directory,
+    HN_BG,
     HN_SURFACE,
     HN_NAVY,
     HN_BORDER,
@@ -22,6 +24,55 @@ from src.hn_ano_tool.gui import (
 from src.hn_ano_tool.gui.preferences import load_preferences, save_preferences
 from src.hn_ano_tool.gui.preflight import validate_run_paths
 MIN_FILTER_KOLOM_PX = 380
+
+
+def _work_area(root: tk.Misc) -> tuple[int, int, int, int]:
+    """Screen area without the taskbar as (left, top, right, bottom)."""
+    if os.name == "nt":
+        try:
+            rect = ctypes.wintypes.RECT()
+            SPI_GETWORKAREA = 0x0030
+            if ctypes.windll.user32.SystemParametersInfoW(SPI_GETWORKAREA, 0, ctypes.byref(rect), 0):
+                return rect.left, rect.top, rect.right, rect.bottom
+        except (AttributeError, OSError):
+            pass
+    return 0, 0, root.winfo_screenwidth(), root.winfo_screenheight()
+
+
+class _Tooltip:
+    """Show the text from `get_text` under `widget` while the mouse hovers over it."""
+
+    def __init__(self, widget: tk.Widget, get_text):
+        self.widget = widget
+        self.get_text = get_text
+        self.tip = None
+        widget.bind("<Enter>", self._show, add="+")
+        widget.bind("<Leave>", self._hide, add="+")
+
+    def _show(self, _event):
+        text = self.get_text()
+        if not text or self.tip:
+            return
+        self.tip = tk.Toplevel(self.widget)
+        self.tip.wm_overrideredirect(True)
+        x = self.widget.winfo_rootx()
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 4
+        self.tip.wm_geometry(f"+{x}+{y}")
+        tk.Label(
+            self.tip,
+            text=text,
+            bg="#FFFFE0",
+            fg=HN_NAVY,
+            relief="solid",
+            borderwidth=1,
+            padx=6,
+            pady=3,
+        ).pack()
+
+    def _hide(self, _event):
+        if self.tip:
+            self.tip.destroy()
+            self.tip = None
 
 class App(tk.Tk):
     def __init__(self):
@@ -47,13 +98,13 @@ class App(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
         self.title("Health Noord - Anonimisatie-tool")
-        self.geometry("1200x900")
 
         # --- Window icon (robust for dev + PyInstaller) ---
         ico_path = resource_path("assets/health_noord.ico")
         fallback_ico_path = resource_path("assets/favicon.ico")
         png_path = resource_path("assets/favicon.png")
-        logo_path = resource_path("assets/hoofdlogo-healthNoord.png")
+        # Pre-scaled with Lanczos: Tk's subsample() skips pixels and makes the tagline jagged.
+        logo_path = resource_path("assets/hoofdlogo-healthNoord-klein.png")
 
         # 1) Prefer .ico for Windows titlebar/taskbar
         try:
@@ -84,37 +135,33 @@ class App(tk.Tk):
         base_font = ("Segoe UI", 11)
 
         # --- Main container ---
-        main = ttk.Frame(self, padding=18, style="App.TFrame")
+        main = ttk.Frame(self, padding=(18, 12, 18, 12), style="App.TFrame")
         main.pack(fill="both", expand=True)
 
-        # Header
+        # Header: small logo with the title next to it, on one row
         header = ttk.Frame(main, style="App.TFrame")
-        header.pack(fill="x", pady=(0, 14))
-
-        # Optional logo in header (small)
-        logo_row = ttk.Frame(header, style="App.TFrame")
-        logo_row.pack(fill="x")
+        header.pack(fill="x", pady=(0, 10))
 
         self._hn_logo_img = None
         try:
             if os.path.exists(logo_path):
-                self._hn_logo_img = tk.PhotoImage(file=logo_path).subsample(3, 3)
-                ttk.Label(logo_row, image=self._hn_logo_img, style="TLabel").pack(side="left")
+                self._hn_logo_img = tk.PhotoImage(file=logo_path)
+                ttk.Label(header, image=self._hn_logo_img, style="TLabel").pack(side="left")
         except Exception:
             self._hn_logo_img = None
 
         if self._hn_logo_img is None:
-            title_row = ttk.Frame(logo_row, style="App.TFrame")
-            title_row.pack(side="left", fill="x", expand=True)
-            ttk.Label(title_row, text="Health ", style="HN.Title.TLabel").pack(side="left")
-            ttk.Label(title_row, text="Noord", style="HN.TitleOrange.TLabel").pack(side="left")
+            ttk.Label(header, text="Health ", style="HN.Title.TLabel").pack(side="left")
+            ttk.Label(header, text="Noord", style="HN.TitleOrange.TLabel").pack(side="left")
 
-        ttk.Label(header, text="Tekst-anonimisatie", style="HN.SubTitle.TLabel").pack(anchor="w", pady=(6, 0))
+        title_col = ttk.Frame(header, style="App.TFrame")
+        title_col.pack(side="left", padx=(18, 0))
+        ttk.Label(title_col, text="Tekst-anonimisatie", style="HN.SubTitle.TLabel").pack(anchor="w")
         ttk.Label(
-            header,
-            text="Configureer de instellingen en kies een bestand om te anonimiseren.",
+            title_col,
+            text="Kies een invoerbestand en uitvoermap, en eventueel extra lijsten.",
             style="HN.Muted.TLabel",
-        ).pack(anchor="w", pady=(2, 0))
+        ).pack(anchor="w")
 
         # --- Upper content: 2 columns ---
         upper = ttk.Frame(main, style="App.TFrame")
@@ -131,187 +178,46 @@ class App(tk.Tk):
         right_col.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
 
         # === LEFT COLUMN ===
-        frm_files = ttk.Labelframe(left_col, text="Bestanden", style="Card.TLabelframe", padding=14)
-        frm_files.pack(fill="both", expand=True)
+        # attr name -> (path label, clear button, placeholder text)
+        self._path_rows: dict[str, tuple[ttk.Label, ttk.Button, str]] = {}
+        self._full_paths: dict[str, str] = {}
 
-        def _muted_label(parent, text: str) -> ttk.Label:
-            return ttk.Label(parent, text=text, style="HN.CardMuted.TLabel", anchor="w")
+        frm_required = ttk.Labelframe(left_col, text="Verplicht", style="Card.TLabelframe", padding=(14, 8))
+        frm_required.pack(fill="x")
+        frm_optional = ttk.Labelframe(left_col, text="Optioneel", style="Card.TLabelframe", padding=(14, 8))
+        frm_optional.pack(fill="both", expand=True, pady=(10, 0))
+        for frame in (frm_required, frm_optional):
+            frame.grid_columnconfigure(1, weight=1)
 
-        # Input file
-        row_in = ttk.Frame(frm_files, style="Card.TFrame")
-        row_in.pack(fill="x", pady=6)
+        self._add_path_row(
+            frm_required, 0, "📁 Invoer .txt", self.choose_input,
+            "input_file", "Geen bestand geselecteerd",
+        )
+        self._add_path_row(
+            frm_required, 1, "📁 Uitvoermap", self.choose_output,
+            "output_dir", "Geen map geselecteerd",
+        )
+        self._add_path_row(
+            frm_optional, 0, "📁 Logmap", self.choose_log,
+            "log_dir", "Geen map geselecteerd (log komt in de uitvoermap)",
+        )
+        self._add_path_row(
+            frm_optional, 1, "📁 Patiëntenlijst", self.choose_extra_names,
+            "extra_names_path", "Geen patiëntenbestand geselecteerd",
+        )
+        self._add_path_row(
+            frm_optional, 2, "📁 Medewerkerslijst", self.choose_extra_medewerkers_names,
+            "extra_medewerkers_names_path", "Geen medewerkersbestand geselecteerd",
+        )
+        self._add_path_row(
+            frm_optional, 3, "📁 Locatielijst", self.choose_extra_locaties_names,
+            "extra_locaties_names_path", "Geen locatiesbestand geselecteerd",
+        )
+        self._add_path_row(
+            frm_optional, 4, "📁 Whitelist", self.choose_whitelist,
+            "whitelist_path", "Geen whitelistbestand geselecteerd",
+        )
 
-        ttk.Button(
-            row_in,
-            text="✖",
-            width=3,
-            style="Icon.TButton",
-            command=lambda: self._clear_path("input_file", self.lbl_in, "Geen bestand geselecteerd"),
-        ).pack(side="left")
-
-        ttk.Button(
-            row_in,
-            text="📁 Invoer .txt",
-            style="Secondary.TButton",
-            command=self.choose_input,
-        ).pack(side="left", padx=(8, 0))
-
-        self.lbl_in = _muted_label(row_in, "Geen bestand geselecteerd")
-        self.lbl_in.pack(side="left", padx=10, fill="x", expand=True)
-
-        # Output folder
-        row_out = ttk.Frame(frm_files, style="Card.TFrame")
-        row_out.pack(fill="x", pady=6)
-
-        ttk.Button(
-            row_out,
-            text="✖",
-            width=3,
-            style="Icon.TButton",
-            command=lambda: self._clear_path("output_dir", self.lbl_out, "Geen map geselecteerd"),
-        ).pack(side="left")
-
-        ttk.Button(
-            row_out,
-            text="📁 Uitvoermap",
-            style="Secondary.TButton",
-            command=self.choose_output,
-        ).pack(side="left", padx=(8, 0))
-
-        self.lbl_out = _muted_label(row_out, "Geen map geselecteerd")
-        self.lbl_out.pack(side="left", padx=10, fill="x", expand=True)
-
-        # Log folder
-        row_log = ttk.Frame(frm_files, style="Card.TFrame")
-        row_log.pack(fill="x", pady=6)
-
-        ttk.Button(
-            row_log,
-            text="✖",
-            width=3,
-            style="Icon.TButton",
-            command=lambda: self._clear_path("log_dir", self.lbl_log, "Geen map geselecteerd"),
-        ).pack(side="left")
-
-        ttk.Button(
-            row_log,
-            text="📁 Logmap",
-            style="Secondary.TButton",
-            command=self.choose_log,
-        ).pack(side="left", padx=(8, 0))
-
-        self.lbl_log = _muted_label(row_log, "Geen map geselecteerd")
-        self.lbl_log.pack(side="left", padx=10, fill="x", expand=True)
-
-        # Extra patienten names file
-        row_extra = ttk.Frame(frm_files, style="Card.TFrame")
-        row_extra.pack(fill="x", pady=6)
-
-        ttk.Button(
-            row_extra,
-            text="✖",
-            width=3,
-            style="Icon.TButton",
-            command=lambda: self._clear_path(
-                "extra_names_path",
-                self.lbl_extra_names,
-                "Geen patiëntenbestand geselecteerd",
-            ),
-        ).pack(side="left")
-
-        ttk.Button(
-            row_extra,
-            text="📁 Patiëntenlijst",
-            style="Secondary.TButton",
-            command=self.choose_extra_names,
-        ).pack(side="left", padx=(8, 0))
-
-        self.lbl_extra_names = _muted_label(row_extra, "Geen patiëntenbestand geselecteerd")
-        self.lbl_extra_names.pack(side="left", padx=10, fill="x", expand=True)
-
-        # Extra medewerkers names file
-        row_extra_med = ttk.Frame(frm_files, style="Card.TFrame")
-        row_extra_med.pack(fill="x", pady=6)
-
-        ttk.Button(
-            row_extra_med,
-            text="✖",
-            width=3,
-            style="Icon.TButton",
-            command=lambda: self._clear_path(
-                "extra_medewerkers_names_path",
-                self.lbl_extra_medewerkers_names,
-                "Geen medewerkersbestand geselecteerd",
-            ),
-        ).pack(side="left")
-
-        ttk.Button(
-            row_extra_med,
-            text="📁 Medewerkerslijst",
-            style="Secondary.TButton",
-            command=self.choose_extra_medewerkers_names,
-        ).pack(side="left", padx=(8, 0))
-
-        self.lbl_extra_medewerkers_names = _muted_label(row_extra_med, "Geen medewerkersbestand geselecteerd")
-        self.lbl_extra_medewerkers_names.pack(side="left", padx=10, fill="x", expand=True)
-
-        # Extra locaties names file
-        row_extra_loc = ttk.Frame(frm_files, style="Card.TFrame")
-        row_extra_loc.pack(fill="x", pady=6)
-
-        ttk.Button(
-            row_extra_loc,
-            text="✖",
-            width=3,
-            style="Icon.TButton",
-            command=lambda: self._clear_path(
-                "extra_locaties_names_path",
-                self.lbl_extra_locaties_names,
-                "Geen locatiesbestand geselecteerd",
-            ),
-        ).pack(side="left")
-
-        ttk.Button(
-            row_extra_loc,
-            text="📁 Locatielijst",
-            style="Secondary.TButton",
-            command=self.choose_extra_locaties_names,
-        ).pack(side="left", padx=(8, 0))
-
-        self.lbl_extra_locaties_names = _muted_label(row_extra_loc, "Geen locatiesbestand geselecteerd")
-        self.lbl_extra_locaties_names.pack(side="left", padx=10, fill="x", expand=True)
-
-        row_whitelist = ttk.Frame(frm_files, style="Card.TFrame")
-        row_whitelist.pack(fill="x", pady=6)
-
-        ttk.Button(
-            row_whitelist,
-            text="✖",
-            width=3,
-            style="Icon.TButton",
-            command=lambda: self._clear_path(
-                "whitelist_path",
-                self.lbl_whitelist,
-                "Geen whitelistbestand geselecteerd",
-            ),
-        ).pack(side="left")
-
-        ttk.Button(
-            row_whitelist,
-            text="📁 Whitelist",
-            style="Secondary.TButton",
-            command=self.choose_whitelist,
-        ).pack(side="left", padx=(8, 0))
-
-        self.lbl_whitelist = _muted_label(row_whitelist, "Geen whitelistbestand geselecteerd")
-        self.lbl_whitelist.pack(side="left", padx=10, fill="x", expand=True)
-
-        self.input_file = None
-        self.output_dir = None
-        self.log_dir = None
-        self.extra_names_path = None
-        self.extra_medewerkers_names_path = None
-        self.extra_locaties_names_path = None
         # === RIGHT COLUMN ===
         frm_filters = ttk.Labelframe(right_col, text="Filter op", style="Card.TLabelframe", padding=14)
         frm_filters.pack(fill="both", expand=True)
@@ -322,20 +228,30 @@ class App(tk.Tk):
         row = 0
         for key, label in DEDUCE_FILTER_GROUPS.items():
             var = tk.BooleanVar(value=key not in disabled_groups)
-            chk = ttk.Checkbutton(
+            # Classic tk.Checkbutton: on Windows it draws the native box with a
+            # tick, where ttk's "clam" theme draws a cross that reads as "off".
+            chk = tk.Checkbutton(
                 frm_filters,
                 text=label,
                 variable=var,
-                style="ChromeCheck.TCheckbutton",
                 command=self._save_preferences,
+                anchor="w",
+                bg=HN_BG,
+                fg=HN_NAVY,
+                activebackground=HN_BG,
+                activeforeground=HN_NAVY,
+                selectcolor="white",
+                highlightthickness=0,
+                borderwidth=0,
+                font=base_font,
             )
-            chk.grid(row=row, column=0, sticky="w", padx=6, pady=4)
+            chk.grid(row=row, column=0, sticky="w", padx=6, pady=3)
             self.filter_vars[key] = var
             row += 1
 
         # --- Run button full width ---
         run_frame = ttk.Frame(main, style="App.TFrame")
-        run_frame.pack(fill="x", pady=(14, 8))
+        run_frame.pack(fill="x", pady=(12, 6))
 
         self.btn_run = ttk.Button(run_frame, text="⏳ Bezig met initialiseren...", style="Primary.TButton", command=self.run)
         self.btn_run.pack(side="left", fill="x", expand=True)
@@ -354,7 +270,41 @@ class App(tk.Tk):
         self.progressbar.pack(fill="x", pady=(6, 0))
 
         self.progress_label = ttk.Label(main, text="", style="HN.Muted.TLabel")
-        self.progress_label.pack(anchor="w", pady=(3, 10))
+        self.progress_label.pack(anchor="w", pady=(3, 8))
+
+        # Result summary is packed at the bottom BEFORE the preview, so on a small
+        # screen the preview shrinks instead of these lines falling off the window.
+        result_frame = ttk.Frame(main, style="App.TFrame")
+        result_frame.pack(side="bottom", fill="x")
+
+        self.lbl_stats = ttk.Label(result_frame, text="", anchor="w", style="HN.Muted.TLabel")
+        self.lbl_stats.pack(fill="x", pady=(4, 0))
+        self.lbl_output_location = ttk.Label(
+            result_frame,
+            text="",
+            style="HN.Link.TLabel",
+            cursor="hand2",
+            takefocus=True,
+            wraplength=1100,
+            justify="left",
+        )
+        self.lbl_output_location.pack(fill="x", anchor="w")
+        self.lbl_output_location.bind("<Button-1>", lambda _event: self.open_output())
+        self.lbl_output_location.bind("<Return>", lambda _event: self.open_output())
+        self.lbl_output_location.bind("<space>", lambda _event: self.open_output())
+        self.lbl_log_location = ttk.Label(
+            result_frame,
+            text="",
+            style="HN.Link.TLabel",
+            cursor="hand2",
+            takefocus=True,
+            wraplength=1100,
+            justify="left",
+        )
+        self.lbl_log_location.pack(fill="x", anchor="w")
+        self.lbl_log_location.bind("<Button-1>", lambda _event: self.open_log())
+        self.lbl_log_location.bind("<Return>", lambda _event: self.open_log())
+        self.lbl_log_location.bind("<space>", lambda _event: self.open_log())
 
         # --- Output preview ---
         preview_frame = ttk.Frame(main, style="App.TFrame")
@@ -385,7 +335,7 @@ class App(tk.Tk):
 
         self.txt_out = tk.Text(
             output_frame,
-            height=16,
+            height=6,
             wrap="word",
             bg=HN_SURFACE,
             fg=HN_NAVY,
@@ -407,35 +357,7 @@ class App(tk.Tk):
         self.txt_out.pack(side="left", fill="both", expand=True)
         output_scrollbar.pack(side="right", fill="y")
 
-        # Stats summary bar
-        self.lbl_stats = ttk.Label(main, text="", anchor="w", style="HN.Muted.TLabel")
-        self.lbl_stats.pack(fill="x", pady=(4, 0))
-        self.lbl_output_location = ttk.Label(
-            main,
-            text="",
-            style="HN.Link.TLabel",
-            cursor="hand2",
-            takefocus=True,
-            wraplength=1100,
-            justify="left",
-        )
-        self.lbl_output_location.pack(fill="x", anchor="w")
-        self.lbl_output_location.bind("<Button-1>", lambda _event: self.open_output())
-        self.lbl_output_location.bind("<Return>", lambda _event: self.open_output())
-        self.lbl_output_location.bind("<space>", lambda _event: self.open_output())
-        self.lbl_log_location = ttk.Label(
-            main,
-            text="",
-            style="HN.Link.TLabel",
-            cursor="hand2",
-            takefocus=True,
-            wraplength=1100,
-            justify="left",
-        )
-        self.lbl_log_location.pack(fill="x", anchor="w")
-        self.lbl_log_location.bind("<Button-1>", lambda _event: self.open_log())
-        self.lbl_log_location.bind("<Return>", lambda _event: self.open_log())
-        self.lbl_log_location.bind("<space>", lambda _event: self.open_log())
+        self._fit_to_screen()
 
         # to front on start
         self.after(100, self.bring_to_front)
@@ -453,9 +375,80 @@ class App(tk.Tk):
 
     # --- File Choosers ---
 
-    def _clear_path(self, attr_name: str, label_widget: ttk.Label, default_text: str):
+    def _add_path_row(
+        self,
+        parent: ttk.Labelframe,
+        row: int,
+        button_text: str,
+        command,
+        attr_name: str,
+        default_text: str,
+    ):
         setattr(self, attr_name, None)
-        label_widget.config(text=default_text, style="HN.CardMuted.TLabel")
+        ttk.Button(
+            parent,
+            text=button_text,
+            style="Secondary.TButton",
+            width=18,
+            command=command,
+        ).grid(row=row, column=0, sticky="w", pady=4)
+
+        # width=1: the label takes the space the grid gives it instead of
+        # stretching the column to fit a long path.
+        label = ttk.Label(parent, text=default_text, style="HN.CardMuted.TLabel", anchor="w", width=1)
+        label.grid(row=row, column=1, sticky="ew", padx=10)
+        _Tooltip(label, lambda: self._full_paths.get(attr_name))
+
+        clear_button = ttk.Button(
+            parent,
+            text="✖",
+            width=3,
+            style="Icon.TButton",
+            command=lambda: self._clear_path(attr_name),
+        )
+        clear_button.grid(row=row, column=2, sticky="e")
+        clear_button.grid_remove()  # only shown once something is selected
+
+        self._path_rows[attr_name] = (label, clear_button, default_text)
+
+    @staticmethod
+    def _display_path(path: str, is_file: bool, max_chars: int = 60) -> str:
+        text = os.path.basename(path) if is_file else os.path.normpath(path)
+        if len(text) > max_chars:
+            keep = (max_chars - 1) // 2
+            text = text[:keep] + "…" + text[-keep:]
+        return text
+
+    def _set_path(self, attr_name: str, path: str, is_file: bool = True):
+        label, clear_button, _ = self._path_rows[attr_name]
+        setattr(self, attr_name, path)
+        self._full_paths[attr_name] = os.path.normpath(path)
+        label.config(text=self._display_path(path, is_file), style="HN.Card.TLabel")
+        clear_button.grid()
+
+    def _clear_path(self, attr_name: str):
+        label, clear_button, default_text = self._path_rows[attr_name]
+        setattr(self, attr_name, None)
+        self._full_paths.pop(attr_name, None)
+        label.config(text=default_text, style="HN.CardMuted.TLabel")
+        clear_button.grid_remove()
+
+    def _fit_to_screen(self):
+        """Size the window to its content, but never beyond the screen's work area."""
+        self.update_idletasks()
+        left, top, right, bottom = _work_area(self)
+        scale = self.winfo_fpixels("1i") / 96
+        frame = int(40 * scale)  # title bar + window borders
+        available_width = right - left - frame
+        available_height = bottom - top - frame
+
+        width = min(max(self.winfo_reqwidth(), int(1200 * scale)), available_width)
+        # Room for a taller preview when the screen has it.
+        height = min(self.winfo_reqheight() + int(200 * scale), available_height)
+        self.minsize(min(int(900 * scale), width), min(self.winfo_reqheight(), height))
+        x = left + max(0, (right - left - width) // 2)
+        y = top + max(0, (bottom - top - height - frame) // 2)
+        self.geometry(f"{width}x{height}+{x}+{y}")
 
     def _save_preferences(self):
         disabled_groups = {key for key, var in self.filter_vars.items() if not var.get()}
@@ -469,7 +462,7 @@ class App(tk.Tk):
 
         def update_controls(parent):
             for child in parent.winfo_children():
-                if isinstance(child, (ttk.Button, ttk.Checkbutton)):
+                if isinstance(child, (ttk.Button, ttk.Checkbutton, tk.Checkbutton)):
                     child.configure(state=state)
                 update_controls(child)
 
@@ -597,9 +590,9 @@ class App(tk.Tk):
         except Exception as err:
             messagebox.showerror("Map openen mislukt", str(err).splitlines()[0][:180], parent=self)
 
-    def choose_input(self):
+    def _choose_txt(self, attr_name: str, title: str):
         path = filedialog.askopenfilename(
-            title="Kies invoerbestand (.txt)",
+            title=title,
             filetypes=[("Tekstbestanden", "*.txt"), ("Alle bestanden", "*.*")],
             initialdir=application_directory(),
         )
@@ -608,82 +601,33 @@ class App(tk.Tk):
             if err:
                 messagebox.showerror("Ongeldig bestand", err, parent=self)
                 return
-            self.input_file = path
-            self.lbl_in.config(text=path, style="HN.Card.TLabel")
+            self._set_path(attr_name, path)
+
+    def _choose_dir(self, attr_name: str, title: str):
+        path = filedialog.askdirectory(title=title, initialdir=application_directory())
+        if path:
+            self._set_path(attr_name, path, is_file=False)
+
+    def choose_input(self):
+        self._choose_txt("input_file", "Kies invoerbestand (.txt)")
 
     def choose_output(self):
-        path = filedialog.askdirectory(
-            title="Kies uitvoermap",
-            initialdir=application_directory(),
-        )
-        if path:
-            self.output_dir = path
-            self.lbl_out.config(text=path, style="HN.Card.TLabel")
+        self._choose_dir("output_dir", "Kies uitvoermap")
 
     def choose_log(self):
-        path = filedialog.askdirectory(
-            title="Kies map voor logbestanden",
-            initialdir=application_directory(),
-        )
-        if path:
-            self.log_dir = path
-            self.lbl_log.config(text=path, style="HN.Card.TLabel")
+        self._choose_dir("log_dir", "Kies map voor logbestanden")
 
     def choose_extra_names(self):
-        path = filedialog.askopenfilename(
-            title="Kies patiëntenbestand (.txt)",
-            filetypes=[("Tekstbestanden", "*.txt"), ("Alle bestanden", "*.*")],
-            initialdir=application_directory(),
-        )
-        if path:
-            err = validate_txt_path(path)
-            if err:
-                messagebox.showerror("Ongeldig bestand", err, parent=self)
-                return
-            self.extra_names_path = path
-            self.lbl_extra_names.config(text=path, style="HN.Card.TLabel")
+        self._choose_txt("extra_names_path", "Kies patiëntenbestand (.txt)")
 
     def choose_extra_medewerkers_names(self):
-        path = filedialog.askopenfilename(
-            title="Kies medewerkersbestand (.txt)",
-            filetypes=[("Tekstbestanden", "*.txt"), ("Alle bestanden", "*.*")],
-            initialdir=application_directory(),
-        )
-        if path:
-            err = validate_txt_path(path)
-            if err:
-                messagebox.showerror("Ongeldig bestand", err, parent=self)
-                return
-            self.extra_medewerkers_names_path = path
-            self.lbl_extra_medewerkers_names.config(text=path, style="HN.Card.TLabel")
+        self._choose_txt("extra_medewerkers_names_path", "Kies medewerkersbestand (.txt)")
 
     def choose_extra_locaties_names(self):
-        path = filedialog.askopenfilename(
-            title="Kies locatiesbestand (.txt)",
-            filetypes=[("Tekstbestanden", "*.txt"), ("Alle bestanden", "*.*")],
-            initialdir=application_directory(),
-        )
-        if path:
-            err = validate_txt_path(path)
-            if err:
-                messagebox.showerror("Ongeldig bestand", err, parent=self)
-                return
-            self.extra_locaties_names_path = path
-            self.lbl_extra_locaties_names.config(text=path, style="HN.Card.TLabel")
+        self._choose_txt("extra_locaties_names_path", "Kies locatiesbestand (.txt)")
 
     def choose_whitelist(self):
-        path = filedialog.askopenfilename(
-            title="Kies whitelistbestand (.txt)",
-            filetypes=[("Tekstbestanden", "*.txt"), ("Alle bestanden", "*.*")],
-            initialdir=application_directory(),
-        )
-        if path:
-            err = validate_txt_path(path)
-            if err:
-                messagebox.showerror("Ongeldig bestand", err, parent=self)
-                return
-            self.whitelist_path = path
-            self.lbl_whitelist.config(text=path, style="HN.Card.TLabel")
+        self._choose_txt("whitelist_path", "Kies whitelistbestand (.txt)")
 
     def bring_to_front(self):
         self.lift()
