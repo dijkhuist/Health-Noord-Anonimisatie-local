@@ -1,0 +1,5 @@
+from src.hn_ano_tool.gui.app import App
+
+if __name__ == "__main__":
+    app = App()
+    app.mainloop()

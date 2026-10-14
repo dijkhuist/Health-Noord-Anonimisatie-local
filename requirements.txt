@@ -1,0 +1,20 @@
+###############################################################################
+# Health-Noord Anonimisatie
+# Dependency list for running the anonymization GUI
+#
+# Tested with Python 3.12 on Windows 11
+# ---------------------------------------------------------------------------
+# Install:
+#   python -m venv .venv
+#   .\.venv\Scripts\activate
+#   pip install -r requirements.txt
+###############################################################################
+
+# --- Core anonymization library ---------------------------------------------
+deduce==3.0.6
+
+# --- GUI --------------------------------------------------------------------
+pyinstaller==6.16.0
+pytest==8.3.3
+black==24.10.0
+flake8==7.1.1
