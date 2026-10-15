@@ -20,7 +20,10 @@ Deze handleiding is bedoeld voor gebruikers die de **Windows executable (.exe)**
 ### Extra lijsten (optioneel)
 - Eén item per regel
 - Lege regels worden genegeerd
-- Matching is case-insensitive (hoofd-/kleine letters maakt niet uit)
+- Matching is case-insensitive (hoofd-/kleine letters maakt niet uit); spaties, regelafbrekingen, koppeltekens en apostroffen mogen verschillen
+- Een dubbele achternaam blijft één geheel, ook met spaties rond het koppelteken (`van den Broek - Zoon`)
+- Een losse voor- of achternaam, of een naam van één woord (eventueel met tussenvoegsel, zoals `Arts` of `de Goede`), wordt alleen vervangen als die in de tekst met een hoofdletter staat (`Arts` wel, `arts` niet; `de Goede` wel, `de goede` niet); volledige namen van meer woorden worden altijd vervangen
+- Een naam aan het begin van een zin heeft altijd een hoofdletter; namen die ook een gewoon woord zijn (zoals `Bij`) kunnen daar dus nog vervangen worden
 
 ### Whitelist (optioneel)
 - Eén term of woordgroep per regel

@@ -38,6 +38,34 @@ class ExtraListMatchingTests(unittest.TestCase):
         result = anonymize("Talko sprak Ilse Postma.", patients=patients)
         self.assertEqual(result, "<PERSOON_001> sprak <PERSOON_002>.")
 
+    def test_double_surname_with_spaced_hyphen_stays_one_name(self):
+        text = "Mevr. van den Broek - Zoon belde over haar zoon. Broek kwam niet."
+        result = anonymize(text, patients="van den Broek - Zoon\n")
+        self.assertEqual(result, "Mevr. <PERSOON_001> belde over haar zoon. Broek kwam niet.")
+
+    def test_lone_first_or_last_name_needs_a_capital(self):
+        text = "Bakker en Anna zijn er. De bakker bracht anna brood. JAN BAKKER ook."
+        result = anonymize(text, patients="Anna Bakker\nJan Bakker\n")
+        # "Bakker" is shared (ambiguous), "Anna" is a unique first name.
+        self.assertEqual(
+            result,
+            "Bakker en <PERSOON_001> zijn er. De bakker bracht anna brood. <PERSOON_002> ook.",
+        )
+
+    def test_single_word_name_needs_a_capital(self):
+        text = "Arts belde de arts. Talko en talko."
+        result = anonymize(text, patients="Arts\ntalko\n")
+        self.assertEqual(result, "<PERSOON_001> belde de arts. <PERSOON_002> en talko.")
+
+    def test_surname_with_tussenvoegsel_needs_a_capital_in_the_surname(self):
+        text = "Mw. de Goede zegt: de goede zorg. De heer kwam."
+        result = anonymize(text, patients="de Goede\nHeer\n")
+        self.assertEqual(result, "Mw. <PERSOON_001> zegt: de goede zorg. De heer kwam.")
+
+    def test_full_name_still_matches_in_lowercase(self):
+        result = anonymize("gesprek met anna bakker", patients="Anna Bakker\n")
+        self.assertEqual(result, "gesprek met <PERSOON_001>")
+
     def test_hyphenated_name_matches_with_space(self):
         result = anonymize("mevr. Smit Kramer belde", patients="Anna Smit-Kramer\n")
         self.assertEqual(result, "mevr. <PERSOON_001> belde")

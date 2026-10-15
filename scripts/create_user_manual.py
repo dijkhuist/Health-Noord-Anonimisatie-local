@@ -435,6 +435,12 @@ def build_manual() -> Path:
         "Extra lijsten zijn aanvullende vangnetten voor termen die Deduce mogelijk niet herkent. Namenlijsten kunnen volledige namen en bruikbare schrijfvarianten bevatten; locatielijsten bevatten één locatie per regel. "
         "De tool kan personen pseudonimiseren met consistente placeholders en telt extra vervangingen afzonderlijk in het log."
     )
+    document.add_paragraph(
+        "Hoofdletters, spaties, regelafbrekingen, koppeltekens en apostroffen mogen afwijken van de lijst. Een dubbele achternaam zoals "
+        "'van den Broek - Zoon' blijft één geheel. Een losse voor- of achternaam, of een naam van één woord (eventueel met tussenvoegsel), "
+        "wordt alleen vervangen als die in de tekst met een hoofdletter staat: 'Arts' en 'de Goede' wel, de gewone woorden 'arts' en 'de goede' niet. "
+        "Volledige namen van meer woorden worden altijd vervangen. Aan het begin van een zin kan een naam die ook een gewoon woord is (zoals 'Bij') nog worden vervangen."
+    )
     document.add_heading("Whitelist", level=2)
     document.add_paragraph(
         "Een whitelistbestand bevat één woord of woordgroep per regel. Overeenkomsten zijn hoofdletterongevoelig en volgen woordgrenzen. Een gevonden term wordt vóór herkenning beschermd en daarna in de oorspronkelijke schrijfwijze teruggezet. "

@@ -254,6 +254,8 @@ TUSSENVOEGSELS_CF = {tv.casefold() for tv in TUSSENVOEGSELS}
 def _normalize_spaces(s: str) -> str:
     s = s.replace("’", "'")
     s = re.sub(r"\s+", " ", s).strip()
+    # "Broek - Zoon" is one double surname, not "Broek -" plus "Zoon".
+    s = re.sub(r"\s*[-‐‑–]\s*", "-", s)
     return s
 
 
@@ -326,10 +328,15 @@ class NameAliasPattern:
     pattern: regex die aliassen matcht (full name + eventueel unieke voornaam/achternaam)
     alias_to_canonical: alias -> canonical full name
     ambiguous_aliases: aliassen die NIET uniek waren en daarom niet gebruikt zijn
+    capitalized_only: losse voor-/achternamen en namen van één woord (tussenvoegsels
+        niet meegeteld); die tellen alleen als een woord buiten de tussenvoegsels met een
+        hoofdletter in de tekst staat, zodat "Arts" of "de Goede" niet ook het gewone
+        "arts" of "de goede" vervangt
     """
     pattern: Pattern[str]
     alias_to_canonical: dict[str, str]
     ambiguous_aliases: set[str] = field(default_factory=set)
+    capitalized_only: set[str] = field(default_factory=set)
 
 
 def build_name_alias_pattern(
@@ -376,11 +383,13 @@ def build_name_alias_pattern_from_names(
         return None
 
     alias_to_canonicals: dict[str, set[str]] = defaultdict(set)
+    full_keys: set[str] = set()
 
     for raw in names:
         canonical, first_part, last_part = split_dutch_full_name(str(raw))
         if not canonical:
             continue
+        full_keys.add(term_key(canonical))
 
         if include_full and len(canonical) >= min_alias_len:
             alias_to_canonicals[term_key(canonical)].add(canonical)
@@ -415,7 +424,29 @@ def build_name_alias_pattern_from_names(
     alts = "|".join(flexible_term_regex(a) for a in aliases)
     pat = re.compile(rf"{_TERM_START}(?:{alts}){_TERM_END}", flags=re.IGNORECASE)
 
-    return NameAliasPattern(pattern=pat, alias_to_canonical=alias_to_canonical, ambiguous_aliases=ambiguous)
+    return NameAliasPattern(
+        pattern=pat,
+        alias_to_canonical=alias_to_canonical,
+        ambiguous_aliases=ambiguous,
+        capitalized_only={
+            alias
+            for alias in alias_to_canonical
+            if alias not in full_keys or len(_core_words(alias)) <= 1
+        },
+    )
+
+
+def _core_words(name: str) -> list[str]:
+    """The words of a name without tussenvoegsels ("van den Broek-Zoon" -> Broek, Zoon)."""
+    return [
+        word
+        for word in re.split(_SEPARATORS, name.strip())
+        if word and word.casefold() not in TUSSENVOEGSELS_CF
+    ]
+
+
+def _has_capitalized_core(raw: str) -> bool:
+    return any(word[:1].isupper() for word in _core_words(raw))
 
 
 def _group_by_key(values: Iterable[str]) -> dict[str, set[str]]:
@@ -443,7 +474,10 @@ def vervang_gemiste_namen_typed_with_aliases(
 
     def repl(m: re.Match[str]) -> str:
         raw = m.group(0)
-        canonical = namepat.alias_to_canonical.get(term_key(raw), raw)
+        key = term_key(raw)
+        if key in namepat.capitalized_only and not _has_capitalized_core(raw):
+            return raw  # "arts", "de goede", "De heer": normal words, not the listed name
+        canonical = namepat.alias_to_canonical.get(key, raw)
         ctx.occurrences[t_norm] += 1
         return ctx.pseudonym_for(t_norm, canonical)
 
