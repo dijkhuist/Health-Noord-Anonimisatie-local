@@ -55,7 +55,54 @@ def _read_lines_smart(pad: Optional[Union[str, Path]]) -> list[str]:
     if not p.exists():
         return []
     text = read_text_smart(str(p))
-    return [line.strip() for line in text.splitlines() if line.strip()]
+    lines = (clean_list_line(line) for line in text.splitlines())
+    return [line for line in lines if line]
+
+
+# Invisible characters that often end up in lists copied from Word, Excel or e-mail:
+# zero-width (non-)joiners/spaces, word joiner, soft hyphen, BOM, direction marks.
+_INVISIBLE_CHARS = dict.fromkeys(
+    map(ord, "​‌‍⁠­﻿‎‏‪‫‬‭‮"),
+    None,
+)
+
+
+def clean_list_line(line: str) -> str:
+    """
+    Drop invisible characters, turn non-breaking and other special spaces into
+    normal spaces and strip the line, so "talko\\u00a0" in a list still matches "Talko".
+    """
+    line = line.translate(_INVISIBLE_CHARS)
+    line = "".join(" " if char.isspace() or not char.isprintable() else char for char in line)
+    return " ".join(line.split())
+
+
+# Separators (spaces, line breaks, hyphens) and apostrophe variants are treated as
+# equal, so "Den Haag" also matches "DEN  HAAG", "Sint Oedenrode" "sint-oedenrode"
+# and "'s-Hertogenbosch" "’S HERTOGENBOSCH".
+_SEPARATORS = r"[\s\-‐‑–]+"
+_APOSTROPHES = "'’‘`´"
+
+
+def term_key(term: str) -> str:
+    """Case-, separator- and apostrophe-insensitive key for a list term or a match."""
+    for apostrophe in _APOSTROPHES[1:]:
+        term = term.replace(apostrophe, "'")
+    return re.sub(_SEPARATORS, " ", term).strip().casefold()
+
+
+def flexible_term_regex(term: str) -> str:
+    """Regex for a list term that tolerates any separator / apostrophe variant."""
+    apostrophe_class = "[" + re.escape(_APOSTROPHES) + "]"
+    parts = []
+    for part in term_key(term).split(" "):
+        parts.append(apostrophe_class.join(re.escape(piece) for piece in part.split("'")))
+    return _SEPARATORS.join(parts)
+
+
+# Not inside a word. Quotes and a possessive "'s" around a term do not block a match.
+_TERM_START = r"(?<!\w)"
+_TERM_END = r"(?!\w)"
 
 # =============================================================================
 # Simple list-pattern (legacy / locations)
@@ -68,12 +115,15 @@ def build_namen_pattern(pad: Optional[Union[str, Path]]) -> Optional[re.Pattern]
 
     Let op: dit is *niet* alias-aware (geen mapping voor consistente pseudoniemen).
     """
-    namen = _read_lines_smart(pad)
+    namen = {term_key(name): name for name in _read_lines_smart(pad)}
+    namen.pop("", None)
     if not namen:
         return None
 
+    # Longest first, so "Den Haag" wins over "Haag".
+    alternatives = [flexible_term_regex(key) for key in sorted(namen, key=len, reverse=True)]
     pattern = re.compile(
-        r"\b(" + "|".join(re.escape(name) for name in namen) + r")\b",
+        _TERM_START + "(" + "|".join(alternatives) + ")" + _TERM_END,
         flags=re.IGNORECASE,
     )
     return pattern
@@ -123,7 +173,7 @@ class ExtraNamesContext:
 
     def pseudonym_for(self, entity_type: str, original: str) -> str:
         t = self.normalize_type(entity_type)
-        key = original.strip().casefold()
+        key = term_key(original)
 
         if key in self.mapping[t]:
             return self.mapping[t][key]
@@ -333,13 +383,13 @@ def build_name_alias_pattern_from_names(
             continue
 
         if include_full and len(canonical) >= min_alias_len:
-            alias_to_canonicals[canonical.casefold()].add(canonical)
+            alias_to_canonicals[term_key(canonical)].add(canonical)
 
         if include_first and first_part and len(first_part) >= min_alias_len:
-            alias_to_canonicals[first_part.casefold()].add(canonical)
+            alias_to_canonicals[term_key(first_part)].add(canonical)
 
         if include_last and last_part and len(last_part) >= min_alias_len:
-            alias_to_canonicals[last_part.casefold()].add(canonical)
+            alias_to_canonicals[term_key(last_part)].add(canonical)
 
     if not alias_to_canonicals:
         return None
@@ -348,6 +398,8 @@ def build_name_alias_pattern_from_names(
     ambiguous: set[str] = set()
 
     for alias_cf, cset in alias_to_canonicals.items():
+        # "Jan de Vries" and "JAN DE VRIES" in the lists are one and the same person.
+        cset = {min(group) for group in _group_by_key(cset).values()}
         if unique_only and len(cset) != 1:
             ambiguous.add(alias_cf)
             continue
@@ -360,11 +412,17 @@ def build_name_alias_pattern_from_names(
     aliases = sorted(alias_to_canonical.keys(), key=len, reverse=True)
 
     # boundary: niet matchen binnen woorden
-    namechar = r"[\w'’]"
-    alts = "|".join(re.escape(a) for a in aliases)
-    pat = re.compile(rf"(?<!{namechar})(?:{alts})(?!{namechar})", flags=re.IGNORECASE)
+    alts = "|".join(flexible_term_regex(a) for a in aliases)
+    pat = re.compile(rf"{_TERM_START}(?:{alts}){_TERM_END}", flags=re.IGNORECASE)
 
     return NameAliasPattern(pattern=pat, alias_to_canonical=alias_to_canonical, ambiguous_aliases=ambiguous)
+
+
+def _group_by_key(values: Iterable[str]) -> dict[str, set[str]]:
+    groups: dict[str, set[str]] = defaultdict(set)
+    for value in values:
+        groups[term_key(value)].add(value)
+    return groups
 
 
 def vervang_gemiste_namen_typed_with_aliases(
@@ -385,7 +443,7 @@ def vervang_gemiste_namen_typed_with_aliases(
 
     def repl(m: re.Match[str]) -> str:
         raw = m.group(0)
-        canonical = namepat.alias_to_canonical.get(raw.casefold(), raw)
+        canonical = namepat.alias_to_canonical.get(term_key(raw), raw)
         ctx.occurrences[t_norm] += 1
         return ctx.pseudonym_for(t_norm, canonical)
 
@@ -421,7 +479,7 @@ def merge_name_lists(*paths: Optional[Union[str, Path]]) -> list[str]:
         if not p:
             continue
         for canonical in _read_names_file_canonical(p):
-            key = canonical.casefold()
+            key = term_key(canonical)
             if key in seen:
                 continue
             seen.add(key)

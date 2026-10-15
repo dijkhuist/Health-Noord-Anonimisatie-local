@@ -14,6 +14,7 @@ from .utils import (
     build_name_alias_pattern_from_names,
     build_name_alias_pattern,
     build_namen_pattern,
+    clean_list_line,
 )
 
 # Keys that should be treated as "person name lists"
@@ -137,7 +138,7 @@ def build_whitelist_pattern(path: str | None) -> re.Pattern[str] | None:
     terms = read_text_smart(path).splitlines()
     unique_terms = {}
     for term in terms:
-        term = term.strip()
+        term = clean_list_line(term)
         if term:
             unique_terms.setdefault(term.casefold(), term)
 
