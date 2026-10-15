@@ -99,6 +99,28 @@ class WhitelistTests(unittest.TestCase):
 
         self.assertEqual(output, "<PERSOON_001> heeft het Gabriele-de Vries syndroom.")
 
+    def test_whitelist_wins_for_one_word_name_that_is_an_everyday_word(self):
+        class NoOpDeduce:
+            lookup_structs = {"whitelist": {"zondag"}}
+
+            def deidentify(self, text, enabled=None, disabled=None):
+                return SimpleNamespace(annotations=[])
+
+        with tempfile.TemporaryDirectory() as directory:
+            whitelist = Path(directory) / "whitelist.txt"
+            whitelist.write_text("Zondag\nLinker\nTalko\n", encoding="utf-8")
+            names = Path(directory) / "namen.txt"
+            names.write_text("Zondag\nLinker\nTalko\n", encoding="utf-8")
+            with patch("src.hn_ano_tool.engine.core.get_deduce", return_value=NoOpDeduce()):
+                anonymizer = Anonymizer(
+                    whitelist_path=str(whitelist),
+                    extra_names_paths={"medewerker": str(names)},
+                )
+
+        output, _ = anonymizer.anonymize("Op Zondag kwam Talko, de Linker arm deed pijn.")
+
+        self.assertEqual(output, "Op Zondag kwam <PERSOON_001>, de Linker arm deed pijn.")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -332,11 +332,33 @@ class NameAliasPattern:
         niet meegeteld); die tellen alleen als een woord buiten de tussenvoegsels met een
         hoofdletter in de tekst staat, zodat "Arts" of "de Goede" niet ook het gewone
         "arts" of "de goede" vervangt
+    common_words: namen van één woord die ook een gewoon woord zijn ("Anders",
+        "Linker"); die tellen niet aan het begin van een zin, waar elk woord een
+        hoofdletter heeft (zie set_common_words)
     """
     pattern: Pattern[str]
     alias_to_canonical: dict[str, str]
     ambiguous_aliases: set[str] = field(default_factory=set)
     capitalized_only: set[str] = field(default_factory=set)
+    common_words: set[str] = field(default_factory=set)
+
+    def set_common_words(self, is_common_word) -> None:
+        """Mark one-word names for which `is_common_word(key)` is true, or that are in COMMON_WORDS."""
+        self.common_words = {
+            alias
+            for alias in self.capitalized_only
+            if " " not in alias and (alias in COMMON_WORDS or is_common_word(alias))
+        }
+
+
+# Everyday words that Deduce's common-word list lacks (mostly inflected forms) but that
+# also occur as surnames and often start a sentence in care notes.
+COMMON_WORDS = {
+    "linker", "rechter", "nieuw", "nieuwe", "oude", "grote", "kleine", "goede", "andere",
+    "eerste", "laatste", "volgende", "vorige", "beide", "lange", "korte", "hoge", "lage",
+    "witte", "zwarte", "rode", "bruine", "groene", "verder", "daarna", "vervolgens",
+    "vandaag", "gisteren", "morgen", "vanmorgen", "vanmiddag", "vanavond", "vannacht",
+}
 
 
 def build_name_alias_pattern(
@@ -461,10 +483,14 @@ def vervang_gemiste_namen_typed_with_aliases(
     namepat: Optional[NameAliasPattern],
     entity_type: str,
     ctx: ExtraNamesContext,
+    at_text_start: bool = True,
 ):
     """
     Vervangt matches door <TYPE_###>, maar normaliseert aliassen terug naar 1 canonical
     zodat dezelfde persoon hetzelfde pseudoniem krijgt (voor zover alias uniek is).
+
+    at_text_start: of het begin van `text` ook het begin van een zin/regel is (False
+    voor tekst direct na een code als "[DATUM-1]").
     """
     if namepat is None or is_na(text):
         return text
@@ -477,11 +503,27 @@ def vervang_gemiste_namen_typed_with_aliases(
         key = term_key(raw)
         if key in namepat.capitalized_only and not _has_capitalized_core(raw):
             return raw  # "arts", "de goede", "De heer": normal words, not the listed name
+        if key in namepat.common_words and _at_sentence_start(out, m.start(), at_text_start):
+            return raw  # "Anders ging het goed.": the capital comes from the sentence start
         canonical = namepat.alias_to_canonical.get(key, raw)
         ctx.occurrences[t_norm] += 1
         return ctx.pseudonym_for(t_norm, canonical)
 
     return namepat.pattern.sub(repl, out)
+
+
+def _at_sentence_start(text: str, position: int, at_text_start: bool) -> bool:
+    """True when only quotes, brackets or bullets stand between `position` and the
+    start of the text, a line or field break, or a sentence-ending punctuation mark."""
+    before = text[:position].rstrip(" \"'(‘“*•-–")
+    if not before:
+        return at_text_start
+    if before[-1] == ".":
+        # "mevr. Anders", "dhr. Linker", "J. Anders": a title or initial, not a sentence end.
+        previous_word = re.split(r"\s", before)[-1].casefold()
+        if previous_word in TITLE_WORDS_CF or re.fullmatch(r"(?:\w\.)+", previous_word):
+            return False
+    return before[-1] in ".!?:;\n\r\t"
 
 
 # =============================================================================
@@ -553,9 +595,12 @@ def vervang_gemiste_namen_multi_any(
             continue
 
         if isinstance(pat, NameAliasPattern):
-            out = _outside_codes(out, lambda part: vervang_gemiste_namen_typed_with_aliases(part, pat, t, ctx))
+            out = _outside_codes(
+                out,
+                lambda part, first: vervang_gemiste_namen_typed_with_aliases(part, pat, t, ctx, first),
+            )
         else:
-            out = _outside_codes(out, lambda part: vervang_gemiste_namen_typed(part, pat, t, ctx))
+            out = _outside_codes(out, lambda part, _first: vervang_gemiste_namen_typed(part, pat, t, ctx))
 
     return out
 
@@ -566,9 +611,12 @@ _CODE_PATTERN = re.compile(r"(\[[A-Z_]+-\d+\]|<[A-Z_]+_\d{3,}>)")
 
 def _outside_codes(text: str, replace) -> str:
     """
-    Apply `replace` only to the text between codes, so a list entry such as
-    "Persoon" or "Datum" never changes "[PERSOON-1]" into "[<PERSOON_001>-1]".
+    Apply `replace(part, is_first_part)` only to the text between codes, so a list
+    entry such as "Persoon" or "Datum" never changes "[PERSOON-1]" into
+    "[<PERSOON_001>-1]".
     """
     parts = _CODE_PATTERN.split(text)
     # re.split with one capturing group: even indexes are text, odd indexes are codes.
-    return "".join(replace(part) if i % 2 == 0 and part else part for i, part in enumerate(parts))
+    return "".join(
+        replace(part, i == 0) if i % 2 == 0 and part else part for i, part in enumerate(parts)
+    )

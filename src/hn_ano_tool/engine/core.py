@@ -15,9 +15,23 @@ from .extra_lists import (
 )
 
 from src.hn_ano_tool.engine.utils import (
+    COMMON_WORDS,
     ExtraNamesContext,
+    NameAliasPattern,
     vervang_gemiste_namen_multi_any,
 )
+
+
+def _deduce_common_word_check(deduce):
+    """
+    Membership test for Deduce's own whitelist (common Dutch words, stop words and
+    medical terms). Falls back to "nothing is common" if the structure is missing.
+    """
+    try:
+        words = deduce.lookup_structs["whitelist"]
+        return lambda word: word in words
+    except (AttributeError, KeyError, TypeError):
+        return lambda word: False
 
 
 def runtime_resource_path(relative_path: str) -> str:
@@ -73,10 +87,20 @@ class Anonymizer:
             extra_names_path=extra_names_path,
             extra_names_paths=extra_names_paths,
         )
-        # A term that is in an extra list is always anonymized, even if whitelisted.
-        listed_terms = extra_list_terms(
-            normalize_extra_lists(extra_names_path=extra_names_path, extra_names_paths=extra_names_paths)
-        )
+        is_common_word = _deduce_common_word_check(self.deduce)
+        persons = self.extra_names_patterns.get("persoon")
+        if isinstance(persons, NameAliasPattern):
+            persons.set_common_words(is_common_word)
+        # A term that is in an extra list is anonymized even if whitelisted, except a
+        # one-word term that is also an everyday word ("Kamer", "Zondag"): there the
+        # whitelist wins, so such words can be kept by whitelisting them.
+        listed_terms = {
+            term
+            for term in extra_list_terms(
+                normalize_extra_lists(extra_names_path=extra_names_path, extra_names_paths=extra_names_paths)
+            )
+            if " " in term or not (term in COMMON_WORDS or is_common_word(term))
+        }
         self.whitelist_pattern = build_whitelist_pattern(whitelist_path, exclude=listed_terms)
 
 

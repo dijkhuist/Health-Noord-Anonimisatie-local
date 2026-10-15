@@ -67,6 +67,26 @@ class ExtraListMatchingTests(unittest.TestCase):
         result = anonymize(text, patients="Persoon\nDatum\n", locations="Locatie\nPersoon\n")
         self.assertEqual(result, "[PERSOON-1] sprak <PERSOON_001> in [LOCATIE-2] op [DATUM-3].")
 
+    def test_common_word_name_is_skipped_at_sentence_start_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "namen.txt"
+            path.write_text("Linker\nAnders\nLaverman\n", encoding="utf-8")
+            patterns = build_extra_patterns(extra_names_paths={"patient": str(path)})
+        patterns["persoon"].set_common_words(lambda word: word == "anders")
+
+        text = (
+            "Linker been gezwollen. Anders gaat het goed.\n"
+            "- Linker arm pijnlijk; [DATUM-1] Anders belde.\n"
+            "Laverman kwam. Gesprek met mevr. Anders en dhr. Linker."
+        )
+        result = vervang_gemiste_namen_multi_any(text, patterns, ExtraNamesContext())
+        self.assertEqual(
+            result,
+            "Linker been gezwollen. Anders gaat het goed.\n"
+            "- Linker arm pijnlijk; [DATUM-1] <PERSOON_001> belde.\n"
+            "<PERSOON_002> kwam. Gesprek met mevr. <PERSOON_001> en dhr. <PERSOON_003>.",
+        )
+
     def test_full_name_still_matches_in_lowercase(self):
         result = anonymize("gesprek met anna bakker", patients="Anna Bakker\n")
         self.assertEqual(result, "gesprek met <PERSOON_001>")

@@ -23,7 +23,8 @@ Deze handleiding is bedoeld voor gebruikers die de **Windows executable (.exe)**
 - Matching is case-insensitive (hoofd-/kleine letters maakt niet uit); spaties, regelafbrekingen, koppeltekens en apostroffen mogen verschillen
 - Een dubbele achternaam blijft één geheel, ook met spaties rond het koppelteken (`van den Broek - Zoon`)
 - Een losse voor- of achternaam, of een naam van één woord (eventueel met tussenvoegsel, zoals `Arts` of `de Goede`), wordt alleen vervangen als die in de tekst met een hoofdletter staat (`Arts` wel, `arts` niet; `de Goede` wel, `de goede` niet); volledige namen van meer woorden worden altijd vervangen
-- Een naam aan het begin van een zin heeft altijd een hoofdletter; namen die ook een gewoon woord zijn (zoals `Bij`) kunnen daar dus nog vervangen worden
+- Een naam van één woord die ook een gewoon Nederlands woord is (zoals `Linker` of `Anders`) wordt aan het begin van een zin niet vervangen; na een titel of voorletter (`mevr. Anders`) en midden in een zin wel
+- Wordt een gewoon woord midden in een zin toch als naam vervangen (zoals `Kamer` of `Zondag`), zet het dan op de whitelist of haal het uit de namenlijst
 
 ### Whitelist (optioneel)
 - Eén term of woordgroep per regel
@@ -31,7 +32,7 @@ Deze handleiding is bedoeld voor gebruikers die de **Windows executable (.exe)**
 - Matching is case-insensitive en vereist een volledige woordgroep
 - Een match wordt na verwerking exact teruggezet zoals die in de invoertekst stond
 - Whitelist-termen worden bewust niet geanonimiseerd; voeg alleen termen toe die in de uitvoer mogen blijven staan
-- Staat een term ook in de patiënten-, medewerkers- of locatielijst, dan gaat die lijst voor en wordt de term toch geanonimiseerd
+- Staat een term ook in de patiënten-, medewerkers- of locatielijst, dan gaat die lijst voor en wordt de term toch geanonimiseerd; uitzondering is een term van één woord die ook een gewoon Nederlands woord is (zoals `Kamer`): die blijft staan als hij op de whitelist staat
 
 Voorbeeld `patienten.txt`:
 ```text

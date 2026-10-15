@@ -439,12 +439,14 @@ def build_manual() -> Path:
         "Hoofdletters, spaties, regelafbrekingen, koppeltekens en apostroffen mogen afwijken van de lijst. Een dubbele achternaam zoals "
         "'van den Broek - Zoon' blijft één geheel. Een losse voor- of achternaam, of een naam van één woord (eventueel met tussenvoegsel), "
         "wordt alleen vervangen als die in de tekst met een hoofdletter staat: 'Arts' en 'de Goede' wel, de gewone woorden 'arts' en 'de goede' niet. "
-        "Volledige namen van meer woorden worden altijd vervangen. Aan het begin van een zin kan een naam die ook een gewoon woord is (zoals 'Bij') nog worden vervangen."
+        "Volledige namen van meer woorden worden altijd vervangen. Een naam van één woord die ook een gewoon Nederlands woord is (zoals 'Linker' of 'Anders') "
+        "wordt aan het begin van een zin niet vervangen, omdat de hoofdletter daar van het zinsbegin komt; na een titel of voorletter ('mevr. Anders') en midden in een zin wel."
     )
     document.add_heading("Whitelist", level=2)
     document.add_paragraph(
         "Een whitelistbestand bevat één woord of woordgroep per regel. Overeenkomsten zijn hoofdletterongevoelig en volgen woordgrenzen. Een gevonden term wordt vóór herkenning beschermd en daarna in de oorspronkelijke schrijfwijze teruggezet. "
-        "Staat een term ook in de patiënten-, medewerkers- of locatielijst, dan gaat die lijst voor en wordt de term toch geanonimiseerd."
+        "Staat een term ook in de patiënten-, medewerkers- of locatielijst, dan gaat die lijst voor en wordt de term toch geanonimiseerd. "
+        "Uitzondering: een term van één woord die ook een gewoon Nederlands woord is (zoals 'Kamer' of 'Zondag') blijft staan als die op de whitelist staat."
     )
     add_callout(
         document,
@@ -487,7 +489,8 @@ def build_manual() -> Path:
             ["Optionele lijst is niet leesbaar", "Controleer of het bestand bestaat, een .txt-extensie heeft en niet door een ander programma is vergrendeld."],
             ["Verwerking lijkt lang te duren", "Bekijk fase, bytevoortgang en resttijd. Grote chunks en complexe tekst kunnen meer rekentijd vragen."],
             ["Annuleren duurt nog even", "De huidige chunk moet eerst klaar zijn. Daarna wordt de run veilig afgebroken en verschijnt een annuleerlog."],
-            ["Whitelistterm is vervangen", "Controleer de exacte woordgroep, spelling en woordgrenzen in het whitelistbestand. Gebruik geen te brede korte termen. Staat de term ook in een extra lijst, dan wordt hij bewust toch geanonimiseerd."],
+            ["Whitelistterm is vervangen", "Controleer de exacte woordgroep, spelling en woordgrenzen in het whitelistbestand. Gebruik geen te brede korte termen. Staat de term ook in een extra lijst, dan wordt hij bewust toch geanonimiseerd, behalve als het één gewoon Nederlands woord is."],
+            ["Gewoon woord wordt als naam vervangen", "Het woord staat in de namenlijst en midden in een zin met hoofdletter. Zet het op de whitelist of haal het uit de namenlijst."],
             ["Windows SmartScreen waarschuwt", "Gebruik alleen de door je organisatie verstrekte executable en volg het interne softwarebeleid."],
         ],
     )
