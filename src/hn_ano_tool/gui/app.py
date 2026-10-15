@@ -190,12 +190,12 @@ class App(tk.Tk):
         ttk.Label(
             required_title, text="Verplicht", style="HN.Group.TLabel", font=("Segoe UI", 12, "bold")
         ).pack(side="left")
-        ttk.Label(required_title, text="Tekst-anonimisatie:", style="TLabel").pack(
+        ttk.Label(required_title, text="Tekstanonimisering:", style="TLabel").pack(
             side="left", padx=self._px(24, 6)
         )
         ttk.Label(
             required_title,
-            text="kies een invoerbestand en uitvoermap. Daarna eventueel extra lijsten.",
+            text="kies een invoerbestand en een uitvoermap. Stel daarna eventueel de extra opties in.",
             style="HN.Muted.TLabel",
         ).pack(side="left")
         frm_required = ttk.Labelframe(
