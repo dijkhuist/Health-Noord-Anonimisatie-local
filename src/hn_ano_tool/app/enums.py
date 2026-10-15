@@ -7,7 +7,7 @@ class administrative_unit(Enum):
 
 # Hoofdgroepen die je als “filters” in de GUI toont
 DEDUCE_FILTER_GROUPS: dict[str, str] = {
-    "names": "Namen (persoon/patiënt)",
+    "names": "Namen (persoon)",
     "locations": "Locaties (plaats, straat, postcode, huisnummer)",
     "institutions": "Instellingen (ziekenhuis / zorginstelling)",
     "dates": "Datums",

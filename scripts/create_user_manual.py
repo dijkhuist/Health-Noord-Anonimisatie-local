@@ -341,7 +341,7 @@ def build_manual() -> Path:
         "Kies desgewenst een aparte Logmap. Zonder aparte keuze wordt het log in de uitvoermap geplaatst.",
         "Kies eventueel patiënten-, medewerkers- en locatielijsten. Elke lijst kan afzonderlijk worden weggelaten.",
         "Kies eventueel een whitelist. Gebruik deze alleen voor termen die ongewijzigd in de uitvoer mogen voorkomen.",
-        "Controleer de filtergroepen. Uitgeschakelde groepen worden niet door Deduce verwerkt; extra lijsten kunnen nog steeds aanvullend vervangen.",
+        "Controleer de filtergroepen. Uitgeschakelde groepen worden niet door Deduce verwerkt. Is 'Namen' uitgevinkt, dan worden ook de patiënten- en medewerkerslijst niet gebruikt; is 'Locaties' uitgevinkt, dan ook de locatielijst niet.",
         "Klik op Anonimiseer bestand. Lees de voorcontrole en controleer bestandsnaam, bestandsgrootte en uitvoerlocaties.",
         "Bevestig de start. Tijdens de verwerking worden bestandskeuzes en filters vergrendeld om wijzigingen midden in een run te voorkomen.",
     ]:

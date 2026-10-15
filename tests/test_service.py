@@ -58,6 +58,39 @@ class ServiceTests(unittest.TestCase):
         self.assertIn("[whitelistbestand]", safe_message)
         self.assertIn("[uitvoermap]", safe_message)
 
+    def test_unticked_group_also_switches_off_its_extra_lists(self):
+        received = []
+
+        class RecordingAnonymizer:
+            def __init__(self, **kwargs):
+                received.append(kwargs["extra_names_paths"])
+
+            def anonymize_stream(self, lines, _stats):
+                yield from lines
+
+        cases = [
+            ({"names"}, {"locatie"}, "Locatielijst"),
+            ({"locations"}, {"patient", "medewerker"}, "Medewerkerslijst, Patiëntenlijst"),
+            ({"names", "locations"}, set(), "Nee"),
+        ]
+        for disabled, expected_keys, expected_log in cases:
+            with self.subTest(disabled=disabled), tempfile.TemporaryDirectory() as directory:
+                input_path = Path(directory) / "input.txt"
+                input_path.write_text("tekst\n", encoding="utf-8")
+                settings = Settings(
+                    str(input_path),
+                    str(Path(directory) / "output"),
+                    None,
+                    extra_names_paths={"patient": "p.txt", "medewerker": "m.txt", "locatie": "l.txt"},
+                    disabled_groups=disabled,
+                )
+                with patch("src.hn_ano_tool.app.service.Anonymizer", RecordingAnonymizer):
+                    _, _, log_path, _ = MainController(settings).run()
+
+                self.assertEqual(set(received[-1]), expected_keys)
+                log_text = Path(log_path).read_text(encoding="utf-8")
+                self.assertIn(f"Extra lijsten gebruikt: {expected_log}\n", log_text)
+
     def test_success_reports_progress_and_publishes_complete_output(self):
         class EchoAnonymizer:
             def __init__(self, **_kwargs):
@@ -99,7 +132,7 @@ class ServiceTests(unittest.TestCase):
             self.assertIn("Invoerbestand: input.txt", log_text)
             self.assertIn("Whitelist gebruikt: Ja", log_text)
             self.assertIn("Extra lijsten gebruikt: Patiëntenlijst", log_text)
-            self.assertIn("Actieve filtergroepen:\n  - Namen (persoon/patiënt)\n", log_text)
+            self.assertIn("Actieve filtergroepen:\n  - Namen (persoon)\n", log_text)
             self.assertIn("Uitgeschakelde filtergroepen:\n  - Datums\n", log_text)
             self.assertIn("Deduce-vervangingen: 2", log_text)
             self.assertIn("Extra-lijstvervangingen: 4", log_text)

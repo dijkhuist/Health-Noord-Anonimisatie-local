@@ -53,7 +53,7 @@ Mevrouw De Vries
    - **📁 Locatielijst**
 7. (Optioneel) Kies met **📁 Whitelist** een bestand met termen die behouden moeten blijven.  
    Met de knop **✖** naast een keuze maak je die keuze weer leeg.
-8. Vink onder **Filter op** aan welke categorieën Deduce moet anonimiseren: namen, locaties, instellingen, datums, leeftijden, identificatienummers (BSN/ID/patiëntnr), telefoonnummers, e-mailadressen en URL's. Standaard staan alle categorieën aan.
+8. Vink onder **Filter op** aan welke categorieën Deduce moet anonimiseren: namen, locaties, instellingen, datums, leeftijden, identificatienummers (BSN/ID/patiëntnr), telefoonnummers, e-mailadressen en URL's. Standaard staan alle categorieën aan. Vink je **Namen (persoon)** uit, dan worden ook de patiënten- en medewerkerslijst niet gebruikt; vink je **Locaties** uit, dan ook de locatielijst niet.
 9. Klik op **Anonimiseer bestand**. De voorcontrole controleert de gekozen bestanden en mappen en toont de invoernaam, bestandsgrootte en uitvoerlocaties. Tijdens de verwerking zijn de bestandskeuzes en filters vergrendeld. De voortgang toont de huidige fase; na ongeveer tien seconden verschijnt ook een resterende-tijdschatting.
 10. Gebruik **Annuleer verwerking** als je wilt stoppen. De huidige tekstchunk wordt eerst afgemaakt; daarna wordt de run gestopt zonder gedeeltelijk uitvoerbestand.
 

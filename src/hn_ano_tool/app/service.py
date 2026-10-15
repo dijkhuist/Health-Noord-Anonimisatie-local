@@ -9,6 +9,7 @@ from typing import Callable, Optional, Set
 
 from src.hn_ano_tool.app.enums import DEDUCE_FILTER_GROUPS
 from src.hn_ano_tool.engine.core import Anonymizer
+from src.hn_ano_tool.engine.extra_lists import LOCATION_KEYS, PERSON_KEYS
 from src.hn_ano_tool.engine.stats import RunStats
 from src.hn_ano_tool.io.text_io import iter_lines_smart
 
@@ -149,6 +150,18 @@ class MainController:
             and self.settings.extra_names_path
         ):
             extra_names_paths["patient"] = self.settings.extra_names_path
+
+        # An unticked filter group also switches off its extra lists: no person lists
+        # without "names", no location list without "locations".
+        disabled_groups = self.settings.disabled_groups or set()
+        skipped_keys = (PERSON_KEYS if "names" in disabled_groups else set()) | (
+            LOCATION_KEYS if "locations" in disabled_groups else set()
+        )
+        extra_names_paths = {
+            key: path
+            for key, path in extra_names_paths.items()
+            if (key or "").strip().casefold() not in skipped_keys
+        }
 
         # ensure output/log dirs
         os.makedirs(self.settings.output_dir, exist_ok=True)
