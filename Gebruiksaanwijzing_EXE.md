@@ -28,6 +28,7 @@ Deze handleiding is bedoeld voor gebruikers die de **Windows executable (.exe)**
 - Matching is case-insensitive en vereist een volledige woordgroep
 - Een match wordt na verwerking exact teruggezet zoals die in de invoertekst stond
 - Whitelist-termen worden bewust niet geanonimiseerd; voeg alleen termen toe die in de uitvoer mogen blijven staan
+- Staat een term ook in de patiënten-, medewerkers- of locatielijst, dan gaat die lijst voor en wordt de term toch geanonimiseerd
 
 Voorbeeld `patienten.txt`:
 ```text

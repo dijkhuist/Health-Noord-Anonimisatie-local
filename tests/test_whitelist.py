@@ -79,6 +79,26 @@ class WhitelistTests(unittest.TestCase):
         self.assertNotIn("Gabriele", deduce.received_text)
         self.assertEqual(output, original)
 
+    def test_term_in_extra_list_is_anonymized_even_when_whitelisted(self):
+        class NoOpDeduce:
+            def deidentify(self, text, enabled=None, disabled=None):
+                return SimpleNamespace(annotations=[])
+
+        with tempfile.TemporaryDirectory() as directory:
+            whitelist = Path(directory) / "whitelist.txt"
+            whitelist.write_text("Gabriele-de Vries syndroom\nTalko\n", encoding="utf-8")
+            patients = Path(directory) / "patienten.txt"
+            patients.write_text("talko\n", encoding="utf-8")
+            with patch("src.hn_ano_tool.engine.core.get_deduce", return_value=NoOpDeduce()):
+                anonymizer = Anonymizer(
+                    whitelist_path=str(whitelist),
+                    extra_names_paths={"patient": str(patients)},
+                )
+
+        output, _ = anonymizer.anonymize("Talko heeft het Gabriele-de Vries syndroom.")
+
+        self.assertEqual(output, "<PERSOON_001> heeft het Gabriele-de Vries syndroom.")
+
 
 if __name__ == "__main__":
     unittest.main()

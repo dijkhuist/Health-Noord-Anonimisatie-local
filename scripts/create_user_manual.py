@@ -437,7 +437,8 @@ def build_manual() -> Path:
     )
     document.add_heading("Whitelist", level=2)
     document.add_paragraph(
-        "Een whitelistbestand bevat één woord of woordgroep per regel. Overeenkomsten zijn hoofdletterongevoelig en volgen woordgrenzen. Een gevonden term wordt vóór herkenning beschermd en daarna in de oorspronkelijke schrijfwijze teruggezet."
+        "Een whitelistbestand bevat één woord of woordgroep per regel. Overeenkomsten zijn hoofdletterongevoelig en volgen woordgrenzen. Een gevonden term wordt vóór herkenning beschermd en daarna in de oorspronkelijke schrijfwijze teruggezet. "
+        "Staat een term ook in de patiënten-, medewerkers- of locatielijst, dan gaat die lijst voor en wordt de term toch geanonimiseerd."
     )
     add_callout(
         document,
@@ -480,7 +481,7 @@ def build_manual() -> Path:
             ["Optionele lijst is niet leesbaar", "Controleer of het bestand bestaat, een .txt-extensie heeft en niet door een ander programma is vergrendeld."],
             ["Verwerking lijkt lang te duren", "Bekijk fase, bytevoortgang en resttijd. Grote chunks en complexe tekst kunnen meer rekentijd vragen."],
             ["Annuleren duurt nog even", "De huidige chunk moet eerst klaar zijn. Daarna wordt de run veilig afgebroken en verschijnt een annuleerlog."],
-            ["Whitelistterm is vervangen", "Controleer de exacte woordgroep, spelling en woordgrenzen in het whitelistbestand. Gebruik geen te brede korte termen."],
+            ["Whitelistterm is vervangen", "Controleer de exacte woordgroep, spelling en woordgrenzen in het whitelistbestand. Gebruik geen te brede korte termen. Staat de term ook in een extra lijst, dan wordt hij bewust toch geanonimiseerd."],
             ["Windows SmartScreen waarschuwt", "Gebruik alleen de door je organisatie verstrekte executable en volg het interne softwarebeleid."],
         ],
     )

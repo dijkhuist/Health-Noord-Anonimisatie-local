@@ -8,6 +8,8 @@ from .stats import RunStats, compute_stats
 from .extra_lists import (
     build_extra_patterns,
     build_whitelist_pattern,
+    extra_list_terms,
+    normalize_extra_lists,
     protect_whitelist_terms,
     restore_whitelist_terms,
 )
@@ -71,7 +73,11 @@ class Anonymizer:
             extra_names_path=extra_names_path,
             extra_names_paths=extra_names_paths,
         )
-        self.whitelist_pattern = build_whitelist_pattern(whitelist_path)
+        # A term that is in an extra list is always anonymized, even if whitelisted.
+        listed_terms = extra_list_terms(
+            normalize_extra_lists(extra_names_path=extra_names_path, extra_names_paths=extra_names_paths)
+        )
+        self.whitelist_pattern = build_whitelist_pattern(whitelist_path, exclude=listed_terms)
 
 
 

@@ -15,6 +15,9 @@ from .utils import (
     build_name_alias_pattern,
     build_namen_pattern,
     clean_list_line,
+    split_dutch_full_name,
+    term_key,
+    _read_lines_smart,
 )
 
 # Keys that should be treated as "person name lists"
@@ -131,7 +134,29 @@ def build_extra_patterns(
     return build_extra_name_patterns(cfg)
 
 
-def build_whitelist_pattern(path: str | None) -> re.Pattern[str] | None:
+def extra_list_terms(cfg: ExtraListsConfig) -> set[str]:
+    """
+    Keys (see term_key) of every term in the extra lists: full names, their first
+    and last name parts, and locations.
+    """
+    keys: set[str] = set()
+    for path in cfg.person_paths:
+        for line in _read_lines_smart(path):
+            keys.update(term_key(part) for part in split_dutch_full_name(line) if part)
+    if cfg.location_path:
+        keys.update(term_key(line) for line in _read_lines_smart(cfg.location_path))
+    return keys
+
+
+def build_whitelist_pattern(
+    path: str | None,
+    exclude: set[str] | None = None,
+) -> re.Pattern[str] | None:
+    """
+    Pattern for the whitelist terms. Terms whose key is in `exclude` (terms that
+    are also in an extra list) are left out: an explicitly listed name or location
+    is always anonymized, even when it is whitelisted too.
+    """
     if not path:
         return None
 
@@ -139,6 +164,8 @@ def build_whitelist_pattern(path: str | None) -> re.Pattern[str] | None:
     unique_terms = {}
     for term in terms:
         term = clean_list_line(term)
+        if term and exclude and term_key(term) in exclude:
+            continue
         if term:
             unique_terms.setdefault(term.casefold(), term)
 
