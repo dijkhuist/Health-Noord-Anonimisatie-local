@@ -62,6 +62,11 @@ class ExtraListMatchingTests(unittest.TestCase):
         result = anonymize(text, patients="de Goede\nHeer\n")
         self.assertEqual(result, "Mw. <PERSOON_001> zegt: de goede zorg. De heer kwam.")
 
+    def test_existing_codes_are_never_changed(self):
+        text = "[PERSOON-1] sprak Persoon in [LOCATIE-2] op [DATUM-3]."
+        result = anonymize(text, patients="Persoon\nDatum\n", locations="Locatie\nPersoon\n")
+        self.assertEqual(result, "[PERSOON-1] sprak <PERSOON_001> in [LOCATIE-2] op [DATUM-3].")
+
     def test_full_name_still_matches_in_lowercase(self):
         result = anonymize("gesprek met anna bakker", patients="Anna Bakker\n")
         self.assertEqual(result, "gesprek met <PERSOON_001>")

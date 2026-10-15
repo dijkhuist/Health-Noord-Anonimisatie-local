@@ -553,8 +553,22 @@ def vervang_gemiste_namen_multi_any(
             continue
 
         if isinstance(pat, NameAliasPattern):
-            out = vervang_gemiste_namen_typed_with_aliases(out, pat, t, ctx)
+            out = _outside_codes(out, lambda part: vervang_gemiste_namen_typed_with_aliases(part, pat, t, ctx))
         else:
-            out = vervang_gemiste_namen_typed(out, pat, t, ctx)
+            out = _outside_codes(out, lambda part: vervang_gemiste_namen_typed(part, pat, t, ctx))
 
     return out
+
+
+# Codes already in the text: Deduce's "[PERSOON-1]" and the extra lists' "<PERSOON_001>".
+_CODE_PATTERN = re.compile(r"(\[[A-Z_]+-\d+\]|<[A-Z_]+_\d{3,}>)")
+
+
+def _outside_codes(text: str, replace) -> str:
+    """
+    Apply `replace` only to the text between codes, so a list entry such as
+    "Persoon" or "Datum" never changes "[PERSOON-1]" into "[<PERSOON_001>-1]".
+    """
+    parts = _CODE_PATTERN.split(text)
+    # re.split with one capturing group: even indexes are text, odd indexes are codes.
+    return "".join(replace(part) if i % 2 == 0 and part else part for i, part in enumerate(parts))
