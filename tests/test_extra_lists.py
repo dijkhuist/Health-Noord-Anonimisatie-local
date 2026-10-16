@@ -46,10 +46,31 @@ class ExtraListMatchingTests(unittest.TestCase):
     def test_lone_first_or_last_name_needs_a_capital(self):
         text = "Bakker en Anna zijn er. De bakker bracht anna brood. JAN BAKKER ook."
         result = anonymize(text, patients="Anna Bakker\nJan Bakker\n")
-        # "Bakker" is shared (ambiguous), "Anna" is a unique first name.
+        # "Bakker" is shared by two people: still replaced, with its own pseudonym.
         self.assertEqual(
             result,
-            "Bakker en <PERSOON_001> zijn er. De bakker bracht anna brood. <PERSOON_002> ook.",
+            "<PERSOON_001> en <PERSOON_002> zijn er. De bakker bracht anna brood. <PERSOON_003> ook.",
+        )
+
+    def test_shared_first_name_is_still_anonymized(self):
+        result = anonymize("Wil belde. Later kwam Wil Bakker.", patients="Wil Bakker\nWil de Jong\n")
+        self.assertEqual(result, "<PERSOON_001> belde. Later kwam <PERSOON_002>.")
+
+    def test_first_name_that_is_a_common_word_is_replaced_at_sentence_start(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "namen.txt"
+            path.write_text("Wil Bakker\nMeer\nNieuwe Hoven-Huging\n", encoding="utf-8")
+            patterns = build_extra_patterns(extra_names_paths={"patient": str(path)})
+        patterns["persoon"].set_common_words(lambda word: word in {"wil", "meer"})
+
+        result = vervang_gemiste_namen_multi_any(
+            "Wil had een goede nacht. Meer pijn dan gisteren. Nieuwe pleister geplakt.",
+            patterns,
+            ExtraNamesContext(),
+        )
+        self.assertEqual(
+            result,
+            "<PERSOON_001> had een goede nacht. Meer pijn dan gisteren. Nieuwe pleister geplakt.",
         )
 
     def test_single_word_name_needs_a_capital(self):

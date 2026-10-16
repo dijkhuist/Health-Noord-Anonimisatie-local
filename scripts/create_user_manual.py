@@ -239,7 +239,7 @@ def add_title_page(document: Document) -> None:
         "Controleer de uitvoer altijd voordat je deze deelt. Een anonimisatietool kan herkenbare gegevens missen.",
         warning=True,
     )
-    version = document.add_paragraph("Versie van deze handleiding: 14 oktober 2026")
+    version = document.add_paragraph("Versie van deze handleiding: 15 oktober 2026")
     version.alignment = WD_ALIGN_PARAGRAPH.CENTER
     version.runs[0].font.size = Pt(9)
     version.runs[0].font.color.rgb = RGBColor.from_string(MID_GREY)
@@ -299,8 +299,8 @@ def build_manual() -> Path:
         ["Bestand", "Inhoud", "Formaat"],
         [
             ["Invoer", "Tekst die verwerkt moet worden", "Eén .txt-document"],
-            ["Patiëntenlijst", "Patiëntnamen als aanvullende vangnetherkenning", "Eén naam per regel"],
-            ["Medewerkerslijst", "Medewerkersnamen als aanvullende vangnetherkenning", "Eén naam per regel"],
+            ["Patiëntenlijst", "Patiëntnamen die zeker vervangen moeten worden", "Eén naam per regel"],
+            ["Medewerkerslijst", "Medewerkersnamen die zeker vervangen moeten worden", "Eén naam per regel"],
             ["Locatielijst", "Locaties of instellingen die extra herkend moeten worden", "Eén term per regel"],
             ["Whitelist", "Termen die bewust ongewijzigd blijven", "Eén woord of woordgroep per regel"],
         ],
@@ -432,15 +432,18 @@ def build_manual() -> Path:
     document.add_heading("7. Extra lijsten en whitelist", level=1)
     document.add_heading("Extra lijsten", level=2)
     document.add_paragraph(
-        "Extra lijsten zijn aanvullende vangnetten voor termen die Deduce mogelijk niet herkent. Namenlijsten kunnen volledige namen en bruikbare schrijfvarianten bevatten; locatielijsten bevatten één locatie per regel. "
+        "Extra lijsten bevatten namen en locaties die zeker vervangen moeten worden. Ze worden vóór Deduce toegepast, zodat een naam uit de lijst in zijn geheel wordt vervangen, "
+        "inclusief tussenvoegsels en dubbele achternaam; daarna anonimiseert Deduce de rest van de tekst. Namenlijsten bevatten volledige namen (voornaam en achternaam); "
+        "locatielijsten bevatten één locatie per regel. Een voor- of achternaam die meerdere mensen in de lijst delen, wordt ook los vervangen, met een eigen pseudoniem. "
         "De tool kan personen pseudonimiseren met consistente placeholders en telt extra vervangingen afzonderlijk in het log."
     )
     document.add_paragraph(
         "Hoofdletters, spaties, regelafbrekingen, koppeltekens en apostroffen mogen afwijken van de lijst. Een dubbele achternaam zoals "
         "'van den Broek - Zoon' blijft één geheel. Een losse voor- of achternaam, of een naam van één woord (eventueel met tussenvoegsel), "
         "wordt alleen vervangen als die in de tekst met een hoofdletter staat: 'Arts' en 'de Goede' wel, de gewone woorden 'arts' en 'de goede' niet. "
-        "Volledige namen van meer woorden worden altijd vervangen. Een naam van één woord die ook een gewoon Nederlands woord is (zoals 'Linker' of 'Anders') "
-        "wordt aan het begin van een zin niet vervangen, omdat de hoofdletter daar van het zinsbegin komt; na een titel of voorletter ('mevr. Anders') en midden in een zin wel."
+        "Volledige namen van meer woorden worden altijd vervangen. Een achternaam of naam van één woord die ook een gewoon Nederlands woord is (zoals 'Linker' of 'Anders') "
+        "wordt aan het begin van een zin niet vervangen, omdat de hoofdletter daar van het zinsbegin komt; na een titel of voorletter ('mevr. Anders') en midden in een zin wel. "
+        "Voornamen uit een volledige naam (zoals 'Wil' uit 'Wil Bakker') worden ook aan het begin van een zin vervangen."
     )
     document.add_heading("Whitelist", level=2)
     document.add_paragraph(

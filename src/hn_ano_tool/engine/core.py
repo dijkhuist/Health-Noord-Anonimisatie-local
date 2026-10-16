@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from pathlib import Path
 from collections import defaultdict
@@ -32,6 +33,10 @@ def _deduce_common_word_check(deduce):
         return lambda word: word in words
     except (AttributeError, KeyError, TypeError):
         return lambda word: False
+
+
+# Pseudonyms the extra lists insert, e.g. "<PERSOON_001>".
+_PSEUDONYM_PATTERN = re.compile(r"<[A-Z_]+_\d{3,}>")
 
 
 def runtime_resource_path(relative_path: str) -> str:
@@ -157,19 +162,27 @@ class Anonymizer:
         protected_text, protected_terms = protect_whitelist_terms(
             chunk_text, self.whitelist_pattern
         )
+
+        # Extra lists first, on the original text: a listed name is found whole
+        # ("Jan van der Berg-Smit") before Deduce could split it into "[PERSOON-1]" plus
+        # leftovers such as "van der" or "-Smit" that the list no longer recognizes.
+        # The pseudonyms are then hidden from Deduce and put back afterwards.
+        listed_codes: dict[str, str] = {}
+        if self.extra_names_patterns:
+            protected_text = vervang_gemiste_namen_multi_any(
+                protected_text,
+                patterns_by_type=self.extra_names_patterns,
+                ctx=extra_ctx,
+                order=["persoon", "locatie"],
+            )
+            protected_text, listed_codes = protect_whitelist_terms(protected_text, _PSEUDONYM_PATTERN)
+
         doc = self.deduce.deidentify(
             protected_text, enabled=self.enabled, disabled=self.disabled
         )
         out = redactor.redact(protected_text, doc.annotations)
 
-        if self.extra_names_patterns:
-            out = vervang_gemiste_namen_multi_any(
-                out,
-                patterns_by_type=self.extra_names_patterns,
-                ctx=extra_ctx,
-                order=["persoon", "locatie"],
-            )
-
+        out = restore_whitelist_terms(out, listed_codes)
         out = restore_whitelist_terms(out, protected_terms)
 
         chunk_stats = compute_stats(doc)

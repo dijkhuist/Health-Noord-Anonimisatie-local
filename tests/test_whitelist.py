@@ -99,6 +99,33 @@ class WhitelistTests(unittest.TestCase):
 
         self.assertEqual(output, "<PERSOON_001> heeft het Gabriele-de Vries syndroom.")
 
+    def test_listed_name_is_replaced_whole_before_deduce_can_split_it(self):
+        class SplittingDeduce:
+            """Tags only the last word of a surname, as Deduce sometimes does."""
+
+            received_text = ""
+
+            def deidentify(self, text, enabled=None, disabled=None):
+                self.received_text = text
+                annotations = [
+                    SimpleNamespace(start_char=m.start(), end_char=m.end(), tag="persoon", text=m.group(0))
+                    for m in re.finditer(r"Berg|Pieters", text)
+                ]
+                return SimpleNamespace(annotations=annotations)
+
+        with tempfile.TemporaryDirectory() as directory:
+            patients = Path(directory) / "patienten.txt"
+            patients.write_text("Jan van der Berg-Smit\n", encoding="utf-8")
+            deduce = SplittingDeduce()
+            with patch("src.hn_ano_tool.engine.core.get_deduce", return_value=deduce):
+                anonymizer = Anonymizer(extra_names_paths={"patient": str(patients)})
+
+        output, stats = anonymizer.anonymize("Mevr. Van der Berg-Smit en Jan belden met Pieters.")
+
+        self.assertEqual(output, "Mevr. <PERSOON_001> en <PERSOON_001> belden met [PERSOON-1].")
+        self.assertNotIn("Berg", deduce.received_text)  # Deduce never sees the listed name
+        self.assertEqual(stats.by_type["extra persoon"], 2)
+
     def test_whitelist_wins_for_one_word_name_that_is_an_everyday_word(self):
         class NoOpDeduce:
             lookup_structs = {"whitelist": {"zondag"}}

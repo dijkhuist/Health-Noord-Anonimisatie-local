@@ -327,27 +327,36 @@ class NameAliasPattern:
     """
     pattern: regex die aliassen matcht (full name + eventueel unieke voornaam/achternaam)
     alias_to_canonical: alias -> canonical full name
-    ambiguous_aliases: aliassen die NIET uniek waren en daarom niet gebruikt zijn
+    ambiguous_aliases: aliassen die NIET uniek waren; die worden wel vervangen, maar met
+        een eigen pseudoniem omdat niet vaststaat welke persoon bedoeld is
     capitalized_only: losse voor-/achternamen en namen van één woord (tussenvoegsels
         niet meegeteld); die tellen alleen als een woord buiten de tussenvoegsels met een
         hoofdletter in de tekst staat, zodat "Arts" of "de Goede" niet ook het gewone
         "arts" of "de goede" vervangt
-    common_words: namen van één woord die ook een gewoon woord zijn ("Anders",
-        "Linker"); die tellen niet aan het begin van een zin, waar elk woord een
-        hoofdletter heeft (zie set_common_words)
+    common_words: achternamen en namen van één woord die ook een gewoon woord zijn
+        ("Anders", "Linker"); die tellen niet aan het begin van een zin, waar elk woord
+        een hoofdletter heeft (zie set_common_words)
+    first_names: voornamen uit een volledige naam ("Wil" uit "Wil Bakker"); die worden
+        ook aan het begin van een zin vervangen, want zorgnotities beginnen vaak zo
     """
     pattern: Pattern[str]
     alias_to_canonical: dict[str, str]
     ambiguous_aliases: set[str] = field(default_factory=set)
     capitalized_only: set[str] = field(default_factory=set)
     common_words: set[str] = field(default_factory=set)
+    first_names: set[str] = field(default_factory=set)
 
     def set_common_words(self, is_common_word) -> None:
-        """Mark one-word names for which `is_common_word(key)` is true, or that are in COMMON_WORDS."""
+        """
+        Mark one-word names that are everyday words: those in COMMON_WORDS, and other
+        names (not first names) for which `is_common_word(key)` is true. So "Wil" from
+        "Wil Bakker" stays a name at a sentence start, "Nieuwe" or "Linker" does not.
+        """
         self.common_words = {
             alias
             for alias in self.capitalized_only
-            if " " not in alias and (alias in COMMON_WORDS or is_common_word(alias))
+            if " " not in alias
+            and (alias in COMMON_WORDS or (alias not in self.first_names and is_common_word(alias)))
         }
 
 
@@ -358,6 +367,7 @@ COMMON_WORDS = {
     "eerste", "laatste", "volgende", "vorige", "beide", "lange", "korte", "hoge", "lage",
     "witte", "zwarte", "rode", "bruine", "groene", "verder", "daarna", "vervolgens",
     "vandaag", "gisteren", "morgen", "vanmorgen", "vanmiddag", "vanavond", "vannacht",
+    "klein", "groot", "boven", "beneden", "binnen", "buiten", "voor", "achter", "midden",
 }
 
 
@@ -406,12 +416,15 @@ def build_name_alias_pattern_from_names(
 
     alias_to_canonicals: dict[str, set[str]] = defaultdict(set)
     full_keys: set[str] = set()
+    first_name_keys: set[str] = set()
 
     for raw in names:
         canonical, first_part, last_part = split_dutch_full_name(str(raw))
         if not canonical:
             continue
         full_keys.add(term_key(canonical))
+        if first_part and last_part:  # a real first name, not a one-word entry
+            first_name_keys.add(term_key(first_part))
 
         if include_full and len(canonical) >= min_alias_len:
             alias_to_canonicals[term_key(canonical)].add(canonical)
@@ -432,7 +445,10 @@ def build_name_alias_pattern_from_names(
         # "Jan de Vries" and "JAN DE VRIES" in the lists are one and the same person.
         cset = {min(group) for group in _group_by_key(cset).values()}
         if unique_only and len(cset) != 1:
+            # Shared by several people ("Wil" for Wil Bakker and Wil de Jong): still
+            # anonymize it, with its own pseudonym, rather than leave the name standing.
             ambiguous.add(alias_cf)
+            alias_to_canonical[alias_cf] = alias_cf
             continue
         alias_to_canonical[alias_cf] = sorted(cset)[0]
 
@@ -455,6 +471,7 @@ def build_name_alias_pattern_from_names(
             for alias in alias_to_canonical
             if alias not in full_keys or len(_core_words(alias)) <= 1
         },
+        first_names=first_name_keys & set(alias_to_canonical),
     )
 
 

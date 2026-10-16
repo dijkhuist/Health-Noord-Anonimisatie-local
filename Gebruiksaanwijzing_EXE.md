@@ -20,10 +20,12 @@ Deze handleiding is bedoeld voor gebruikers die de **Windows executable (.exe)**
 ### Extra lijsten (optioneel)
 - Eén item per regel
 - Lege regels worden genegeerd
+- De lijsten worden vóór Deduce toegepast: een naam uit je lijst wordt in zijn geheel vervangen (inclusief tussenvoegsels en dubbele achternaam), daarna anonimiseert Deduce de rest van de tekst
+- Een voor- of achternaam die meerdere mensen in de lijst delen (bijvoorbeeld twee keer `Wil`), wordt ook los vervangen, met een eigen pseudoniem
 - Matching is case-insensitive (hoofd-/kleine letters maakt niet uit); spaties, regelafbrekingen, koppeltekens en apostroffen mogen verschillen
 - Een dubbele achternaam blijft één geheel, ook met spaties rond het koppelteken (`van den Broek - Zoon`)
 - Een losse voor- of achternaam, of een naam van één woord (eventueel met tussenvoegsel, zoals `Arts` of `de Goede`), wordt alleen vervangen als die in de tekst met een hoofdletter staat (`Arts` wel, `arts` niet; `de Goede` wel, `de goede` niet); volledige namen van meer woorden worden altijd vervangen
-- Een naam van één woord die ook een gewoon Nederlands woord is (zoals `Linker` of `Anders`) wordt aan het begin van een zin niet vervangen; na een titel of voorletter (`mevr. Anders`) en midden in een zin wel
+- Een achternaam of naam van één woord die ook een gewoon Nederlands woord is (zoals `Linker` of `Anders`) wordt aan het begin van een zin niet vervangen; na een titel of voorletter (`mevr. Anders`) en midden in een zin wel. Voornamen uit een volledige naam (zoals `Wil` uit `Wil Bakker`) worden ook aan het begin van een zin vervangen
 - Wordt een gewoon woord midden in een zin toch als naam vervangen (zoals `Kamer` of `Zondag`), zet het dan op de whitelist of haal het uit de namenlijst
 
 ### Whitelist (optioneel)
@@ -86,7 +88,7 @@ Het log bevat de runstatus, starttijd en duur, invoernaam en grootte, de actieve
 
 ## Praktische tips
 
-- Controleer de output steekproefsgewijs (AVG/GDPR): extra lijsten zijn een aanvullende vangnet-stap, geen 100% garantie.
+- Controleer de output steekproefsgewijs (AVG/GDPR): ook met volledige extra lijsten is er geen 100% garantie.
 - Voeg varianten toe aan je extra lijsten (bijv. volledige naam en veelgebruikte afkorting) als dezelfde persoon op verschillende manieren wordt genoemd.
 - Hoofdletters maken voor de lijsten niet uit, maar andere schrijfwijzen wel: zet ook varianten in de locatielijst (bijv. “Sint Jacobiparochie” én “St. Jacobiparochie”).
 
