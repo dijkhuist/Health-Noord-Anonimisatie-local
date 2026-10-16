@@ -126,6 +126,22 @@ class WhitelistTests(unittest.TestCase):
         self.assertNotIn("Berg", deduce.received_text)  # Deduce never sees the listed name
         self.assertEqual(stats.by_type["extra persoon"], 2)
 
+    def test_postcode_with_capital_mg_is_redacted_but_a_dose_is_not(self):
+        class NoOpDeduce:
+            def deidentify(self, text, enabled=None, disabled=None):
+                return SimpleNamespace(annotations=[])
+
+        with patch("src.hn_ano_tool.engine.core.get_deduce", return_value=NoOpDeduce()):
+            anonymizer = Anonymizer()
+            without_locations = Anonymizer(disabled={"locations"})
+
+        text = "Postcode 9257MG en 9257 MG; paracetamol 1000 mg, 500MG-tablet."
+        output, stats = anonymizer.anonymize(text)
+
+        self.assertEqual(output, "Postcode [LOCATIE-1] en [LOCATIE-2]; paracetamol 1000 mg, 500MG-tablet.")
+        self.assertEqual(stats.by_type["locatie"], 2)
+        self.assertEqual(without_locations.anonymize(text)[0], text)
+
     def test_whitelist_wins_for_one_word_name_that_is_an_everyday_word(self):
         class NoOpDeduce:
             lookup_structs = {"whitelist": {"zondag"}}

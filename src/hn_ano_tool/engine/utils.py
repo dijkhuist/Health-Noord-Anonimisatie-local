@@ -120,13 +120,33 @@ def build_namen_pattern(pad: Optional[Union[str, Path]]) -> Optional[re.Pattern]
     if not namen:
         return None
 
-    # Longest first, so "Den Haag" wins over "Haag".
-    alternatives = [flexible_term_regex(key) for key in sorted(namen, key=len, reverse=True)]
+    # Longest first, so "Den Haag" wins over "Haag". A street also takes the house
+    # number after it ("Hendrik de Vosweg 258-K"), which Deduce no longer sees once the
+    # street itself is replaced.
+    alternatives = [
+        flexible_term_regex(key) + (_HOUSE_NUMBER if _is_street(key) else "")
+        for key in sorted(namen, key=len, reverse=True)
+    ]
     pattern = re.compile(
         _TERM_START + "(" + "|".join(alternatives) + ")" + _TERM_END,
         flags=re.IGNORECASE,
     )
     return pattern
+
+
+_STREET_SUFFIXES = (
+    "straat", "str", "str.", "weg", "laan", "singel", "plein", "kade", "gracht", "dijk",
+    "pad", "hof", "dreef", "steeg", "park", "wal", "markt", "baan", "plantsoen", "allee",
+    "boulevard", "promenade",
+)  # not "dam", "veld", ...: "Amsterdam 2024" is a place and a year, not an address
+
+# "12", "12a", "12 A", "12-2", "258-K", "12/3" after a street name.
+_HOUSE_NUMBER = r"(?:\s+\d{1,5}(?:(?-i:[a-zA-Z]{1,2})\b|\s(?-i:[A-Z])\b|\s?[-/]\s?[A-Za-z0-9]{1,4})?)?"
+_HOUSE_NUMBER_TAIL = re.compile(r"\s+\d[\w\s\-/]*$")
+
+
+def _is_street(key: str) -> bool:
+    return key.split(" ")[-1].endswith(_STREET_SUFFIXES)
 
 
 def vervang_gemiste_namen(text, pattern: Optional[re.Pattern] = None, label: str = "[PERSOON]"):
@@ -516,17 +536,26 @@ def vervang_gemiste_namen_typed_with_aliases(
     t_norm = ctx.normalize_type(entity_type)
 
     def repl(m: re.Match[str]) -> str:
-        raw = m.group(0)
-        key = term_key(raw)
-        if key in namepat.capitalized_only and not _has_capitalized_core(raw):
-            return raw  # "arts", "de goede", "De heer": normal words, not the listed name
-        if key in namepat.common_words and _at_sentence_start(out, m.start(), at_text_start):
-            return raw  # "Anders ging het goed.": the capital comes from the sentence start
-        canonical = namepat.alias_to_canonical.get(key, raw)
+        canonical = _alias_canonical(namepat, out, m, at_text_start)
+        if canonical is None:
+            return m.group(0)
         ctx.occurrences[t_norm] += 1
         return ctx.pseudonym_for(t_norm, canonical)
 
     return namepat.pattern.sub(repl, out)
+
+
+def _alias_canonical(
+    namepat: NameAliasPattern, text: str, m: re.Match[str], at_text_start: bool
+) -> Optional[str]:
+    """The canonical name for match `m`, or None when it is a normal word, not the name."""
+    raw = m.group(0)
+    key = term_key(raw)
+    if key in namepat.capitalized_only and not _has_capitalized_core(raw):
+        return None  # "arts", "de goede", "De heer": normal words, not the listed name
+    if key in namepat.common_words and _at_sentence_start(text, m.start(), at_text_start):
+        return None  # "Anders ging het goed.": the capital comes from the sentence start
+    return namepat.alias_to_canonical.get(key, raw)
 
 
 def _at_sentence_start(text: str, position: int, at_text_start: bool) -> bool:
@@ -599,41 +628,49 @@ def vervang_gemiste_namen_multi_any(
       - re.Pattern (legacy, bv locaties)
       - NameAliasPattern (alias-aware, bv personen)
     ondersteunt.
+
+    All lists are matched in one pass and the longest match wins, so the street
+    "Harmen Systrasingel" from the location list beats the first name "Harmen" from a
+    name list. On equal length the type earlier in `order` wins. Existing codes are
+    never touched.
     """
     if is_na(text):
         return text
 
     out = str(text)
     types = order if order is not None else list(patterns_by_type.keys())
+    code_spans = [m.span() for m in _CODE_PATTERN.finditer(out)]
 
-    for t in types:
+    candidates = []
+    for rank, t in enumerate(types):
         pat = patterns_by_type.get(t)
         if pat is None:
             continue
+        regex = pat.pattern if isinstance(pat, NameAliasPattern) else pat
+        for m in regex.finditer(out):
+            start, end = m.span()
+            if any(a < end and start < b for a, b in code_spans):
+                continue
+            if isinstance(pat, NameAliasPattern):
+                canonical = _alias_canonical(pat, out, m, True)
+                if canonical is None:
+                    continue
+            else:
+                canonical = _HOUSE_NUMBER_TAIL.sub("", m.group(0))  # one street, one code
+            candidates.append((start, start - end, rank, end, t, canonical))
 
-        if isinstance(pat, NameAliasPattern):
-            out = _outside_codes(
-                out,
-                lambda part, first: vervang_gemiste_namen_typed_with_aliases(part, pat, t, ctx, first),
-            )
-        else:
-            out = _outside_codes(out, lambda part, _first: vervang_gemiste_namen_typed(part, pat, t, ctx))
-
-    return out
+    pieces, position = [], 0
+    for start, _negative_length, _rank, end, t, canonical in sorted(candidates):
+        if start < position:
+            continue  # overlaps a longer (or earlier) match
+        t_norm = ctx.normalize_type(t)
+        ctx.occurrences[t_norm] += 1
+        pieces.append(out[position:start])
+        pieces.append(ctx.pseudonym_for(t_norm, canonical))
+        position = end
+    pieces.append(out[position:])
+    return "".join(pieces)
 
 
 # Codes already in the text: Deduce's "[PERSOON-1]" and the extra lists' "<PERSOON_001>".
-_CODE_PATTERN = re.compile(r"(\[[A-Z_]+-\d+\]|<[A-Z_]+_\d{3,}>)")
-
-
-def _outside_codes(text: str, replace) -> str:
-    """
-    Apply `replace(part, is_first_part)` only to the text between codes, so a list
-    entry such as "Persoon" or "Datum" never changes "[PERSOON-1]" into
-    "[<PERSOON_001>-1]".
-    """
-    parts = _CODE_PATTERN.split(text)
-    # re.split with one capturing group: even indexes are text, odd indexes are codes.
-    return "".join(
-        replace(part, i == 0) if i % 2 == 0 and part else part for i, part in enumerate(parts)
-    )
+_CODE_PATTERN = re.compile(r"\[[A-Z_]+-\d+\]|<[A-Z_]+_\d{3,}>")

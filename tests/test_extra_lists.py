@@ -108,6 +108,23 @@ class ExtraListMatchingTests(unittest.TestCase):
             "<PERSOON_002> kwam. Gesprek met mevr. <PERSOON_001> en dhr. <PERSOON_003>.",
         )
 
+    def test_street_from_location_list_beats_first_name_and_takes_house_number(self):
+        result = anonymize(
+            "Woont aan de Harmen Systrasingel 12, verhuist naar Hendrik de Vosweg 258-K. "
+            "Harmen belde. Prins Willem-Alexanderstraat 3a en Harmen Systrasingel 14 A.",
+            patients="Harmen de Boer\nHendrik Postma\nWillem Bakker\n",
+            locations="Harmen Systrasingel\nHendrik de Vosweg\nPrins Willem-Alexanderstraat\n",
+        )
+        self.assertEqual(
+            result,
+            "Woont aan de <LOCATIE_001>, verhuist naar <LOCATIE_002>. "
+            "<PERSOON_001> belde. <LOCATIE_003> en <LOCATIE_001>.",
+        )
+
+    def test_place_is_not_extended_with_a_number(self):
+        result = anonymize("In Amsterdam 2024 en Heerenveen 12 keer.", locations="Amsterdam\nHeerenveen\n")
+        self.assertEqual(result, "In <LOCATIE_001> 2024 en <LOCATIE_002> 12 keer.")
+
     def test_full_name_still_matches_in_lowercase(self):
         result = anonymize("gesprek met anna bakker", patients="Anna Bakker\n")
         self.assertEqual(result, "gesprek met <PERSOON_001>")

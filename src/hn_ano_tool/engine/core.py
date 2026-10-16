@@ -38,6 +38,9 @@ def _deduce_common_word_check(deduce):
 # Pseudonyms the extra lists insert, e.g. "<PERSOON_001>".
 _PSEUDONYM_PATTERN = re.compile(r"<[A-Z_]+_\d{3,}>")
 
+# Dutch postcode with the letters "MG" in capitals; Deduce leaves these out.
+_MG_POSTCODE = re.compile(r"(?<![\w-])[1-9]\d{3} ?MG(?!\w)")
+
 
 def runtime_resource_path(relative_path: str) -> str:
     base_path = getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1])
@@ -158,6 +161,21 @@ class Anonymizer:
         if buf:
             yield "".join(buf)
 
+    def _redact_mg_postcodes(self, text, redactor, stats) -> str:
+        """
+        Deduce skips postcodes ending in "MG" (it reads them as milligrams). Treat four
+        digits plus a capital "MG" ("9257MG", "9257 MG") as a postcode; a lowercase
+        "1000 mg" stays a dose.
+        """
+        if "locations" in (self.disabled or set()):
+            return text
+
+        def replace(match):
+            stats.by_type["locatie"] = stats.by_type.get("locatie", 0) + 1
+            return redactor.code_for("locatie", match.group(0))
+
+        return _MG_POSTCODE.sub(replace, text)
+
     def _process_chunk(self, chunk_text, redactor, extra_ctx, stats) -> str:
         protected_text, protected_terms = protect_whitelist_terms(
             chunk_text, self.whitelist_pattern
@@ -181,6 +199,7 @@ class Anonymizer:
             protected_text, enabled=self.enabled, disabled=self.disabled
         )
         out = redactor.redact(protected_text, doc.annotations)
+        out = self._redact_mg_postcodes(out, redactor, stats)
 
         out = restore_whitelist_terms(out, listed_codes)
         out = restore_whitelist_terms(out, protected_terms)

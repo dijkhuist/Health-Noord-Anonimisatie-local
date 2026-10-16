@@ -22,6 +22,9 @@ Deze handleiding is bedoeld voor gebruikers die de **Windows executable (.exe)**
 - Lege regels worden genegeerd
 - De lijsten worden vóór Deduce toegepast: een naam uit je lijst wordt in zijn geheel vervangen (inclusief tussenvoegsels en dubbele achternaam), daarna anonimiseert Deduce de rest van de tekst
 - Een voor- of achternaam die meerdere mensen in de lijst delen (bijvoorbeeld twee keer `Wil`), wordt ook los vervangen, met een eigen pseudoniem
+- Alle lijsten worden in één keer doorlopen en de langste treffer wint: de straat `Harmen Systrasingel` uit de locatielijst gaat voor op de voornaam `Harmen` uit de namenlijst
+- Bij een straat uit de locatielijst (eindigend op bijvoorbeeld -straat, -weg, -laan, -singel, -plein) wordt het huisnummer meegenomen, ook met toevoeging (`12a`, `12 A`, `258-K`)
+- Een locatie wordt alleen als hele regel herkend; zet varianten (zoals `Zorgcentrum De Bolder` en `De Bolder`) als aparte regels in de lijst
 - Matching is case-insensitive (hoofd-/kleine letters maakt niet uit); spaties, regelafbrekingen, koppeltekens en apostroffen mogen verschillen
 - Een dubbele achternaam blijft één geheel, ook met spaties rond het koppelteken (`van den Broek - Zoon`)
 - Een losse voor- of achternaam, of een naam van één woord (eventueel met tussenvoegsel, zoals `Arts` of `de Goede`), wordt alleen vervangen als die in de tekst met een hoofdletter staat (`Arts` wel, `arts` niet; `de Goede` wel, `de goede` niet); volledige namen van meer woorden worden altijd vervangen
@@ -56,7 +59,7 @@ Mevrouw De Vries
    - **📁 Locatielijst**
 7. (Optioneel) Kies met **📁 Whitelist** een bestand met termen die behouden moeten blijven.  
    Met de knop **✖** naast een keuze maak je die keuze weer leeg.
-8. Vink onder **Filter op** aan welke categorieën Deduce moet anonimiseren: namen, locaties, instellingen, datums, leeftijden, identificatienummers (BSN/ID/patiëntnr), telefoonnummers, e-mailadressen en URL's. Standaard staan alle categorieën aan. Vink je **Namen (persoon)** uit, dan worden ook de patiënten- en medewerkerslijst niet gebruikt; vink je **Locaties** uit, dan ook de locatielijst niet.
+8. Vink onder **Filter op** aan welke categorieën Deduce moet anonimiseren: namen, locaties, instellingen, datums, leeftijden, identificatienummers (BSN/ID/patiëntnr), telefoonnummers, e-mailadressen en URL's. Standaard staan alle categorieën aan. Vink je **Namen (persoon)** uit, dan worden ook de patiënten- en medewerkerslijst niet gebruikt; vink je **Locaties** uit, dan ook de locatielijst niet. Onder Locaties valt ook een postcode op `MG` in hoofdletters (`9257MG`, `9257 MG`), die Deduce zelf overslaat; `1000 mg` in kleine letters blijft staan als dosering. Kamernummers zoals `K412` worden niet herkend.
 9. Klik op **Anonimiseer bestand**. De voorcontrole controleert de gekozen bestanden en mappen en toont de invoernaam, bestandsgrootte en uitvoerlocaties. Tijdens de verwerking zijn de bestandskeuzes en filters vergrendeld. De voortgang toont de huidige fase; na ongeveer tien seconden verschijnt ook een resterende-tijdschatting.
 10. Gebruik **Annuleer verwerking** als je wilt stoppen. De huidige tekstchunk wordt eerst afgemaakt; daarna wordt de run gestopt zonder gedeeltelijk uitvoerbestand.
 

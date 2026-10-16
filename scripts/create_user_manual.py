@@ -239,7 +239,7 @@ def add_title_page(document: Document) -> None:
         "Controleer de uitvoer altijd voordat je deze deelt. Een anonimisatietool kan herkenbare gegevens missen.",
         warning=True,
     )
-    version = document.add_paragraph("Versie van deze handleiding: 15 oktober 2026")
+    version = document.add_paragraph("Versie van deze handleiding: 16 oktober 2026")
     version.alignment = WD_ALIGN_PARAGRAPH.CENTER
     version.runs[0].font.size = Pt(9)
     version.runs[0].font.color.rgb = RGBColor.from_string(MID_GREY)
@@ -435,6 +435,10 @@ def build_manual() -> Path:
         "Extra lijsten bevatten namen en locaties die zeker vervangen moeten worden. Ze worden vóór Deduce toegepast, zodat een naam uit de lijst in zijn geheel wordt vervangen, "
         "inclusief tussenvoegsels en dubbele achternaam; daarna anonimiseert Deduce de rest van de tekst. Namenlijsten bevatten volledige namen (voornaam en achternaam); "
         "locatielijsten bevatten één locatie per regel. Een voor- of achternaam die meerdere mensen in de lijst delen, wordt ook los vervangen, met een eigen pseudoniem. "
+        "Alle lijsten worden in één keer doorlopen en de langste treffer wint, zodat de straat 'Harmen Systrasingel' uit de locatielijst voorgaat op de voornaam 'Harmen'. "
+        "Bij een straat uit de locatielijst wordt het huisnummer meegenomen, ook met toevoeging ('12a', '258-K'). Een locatie wordt alleen als hele regel herkend; "
+        "zet varianten daarom als aparte regels in de lijst. Een postcode op 'MG' in hoofdletters ('9257MG'), die Deduce overslaat, wordt als locatie vervangen; "
+        "'1000 mg' in kleine letters blijft staan als dosering. "
         "De tool kan personen pseudonimiseren met consistente placeholders en telt extra vervangingen afzonderlijk in het log."
     )
     document.add_paragraph(
@@ -463,8 +467,7 @@ def build_manual() -> Path:
 
     document.add_heading("8. Instellingen onthouden", level=1)
     document.add_paragraph(
-        "De tool bewaart de filterkeuzes en het pad naar het whitelistbestand lokaal in het Windows-profiel van de gebruiker onder `%LOCALAPPDATA%\\HealthNoord\\AnonymisatieTool`. "
-        "De inhoud van de whitelist wordt niet in de instellingen gekopieerd. Het hoofd-invoerbestand wordt bewust nooit onthouden; selecteer dit voor iedere run opnieuw."
+        "De tool bewaart de filterkeuzes. De andere keuzes worden bewust nooit onthouden; selecteer dit voor iedere run opnieuw."
     )
 
     document.add_heading("9. Privacy en veilig gebruik", level=1)
