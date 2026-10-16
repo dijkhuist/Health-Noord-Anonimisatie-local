@@ -22,7 +22,8 @@ Deze handleiding is bedoeld voor gebruikers die de **Windows executable (.exe)**
 - Lege regels worden genegeerd
 - De lijsten worden vóór Deduce toegepast: een naam uit je lijst wordt in zijn geheel vervangen (inclusief tussenvoegsels en dubbele achternaam), daarna anonimiseert Deduce de rest van de tekst
 - Een voor- of achternaam die meerdere mensen in de lijst delen (bijvoorbeeld twee keer `Wil`), wordt ook los vervangen, met een eigen pseudoniem
-- Alle lijsten worden in één keer doorlopen en de langste treffer wint: de straat `Harmen Systrasingel` uit de locatielijst gaat voor op de voornaam `Harmen` uit de namenlijst
+- Deduce kent zelf ruim 150.000 Nederlandse straatnamen (BAG). Een voornaam uit de namenlijst die deel is van zo'n straat (`Willem` in `Prins Willem-Alexanderstraat`) blijft staan voor Deduce, dat de hele straat met huisnummer vervangt. Straten hoef je daarom alleen in de locatielijst te zetten als Deduce ze niet kent (bijvoorbeeld een afwijkende spelling of afkorting)
+- Alle lijsten worden in één keer doorlopen en de langste treffer wint: een straat uit de locatielijst gaat voor op een voornaam uit de namenlijst
 - Bij een straat uit de locatielijst (eindigend op bijvoorbeeld -straat, -weg, -laan, -singel, -plein) wordt het huisnummer meegenomen, ook met toevoeging (`12a`, `12 A`, `258-K`)
 - Een locatie wordt alleen als hele regel herkend; zet varianten (zoals `Zorgcentrum De Bolder` en `De Bolder`) als aparte regels in de lijst
 - Matching is case-insensitive (hoofd-/kleine letters maakt niet uit); spaties, regelafbrekingen, koppeltekens en apostroffen mogen verschillen

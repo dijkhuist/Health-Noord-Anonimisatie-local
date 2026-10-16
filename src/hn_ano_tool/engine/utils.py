@@ -145,6 +145,11 @@ _HOUSE_NUMBER = r"(?:\s+\d{1,5}(?:(?-i:[a-zA-Z]{1,2})\b|\s(?-i:[A-Z])\b|\s?[-/]\
 _HOUSE_NUMBER_TAIL = re.compile(r"\s+\d[\w\s\-/]*$")
 
 
+def is_street(key: str) -> bool:
+    """True when a street name ends in a street suffix ("... Vosweg", "... straat")."""
+    return _is_street(term_key(key))
+
+
 def _is_street(key: str) -> bool:
     return key.split(" ")[-1].endswith(_STREET_SUFFIXES)
 
@@ -622,6 +627,7 @@ def vervang_gemiste_namen_multi_any(
     patterns_by_type: dict[str, ExtraPattern],
     ctx: ExtraNamesContext,
     order: Optional[list[str]] = None,
+    street_spans: Iterable[tuple[int, int]] = (),
 ):
     """
     Multi replace die zowel:
@@ -633,6 +639,10 @@ def vervang_gemiste_namen_multi_any(
     "Harmen Systrasingel" from the location list beats the first name "Harmen" from a
     name list. On equal length the type earlier in `order` wins. Existing codes are
     never touched.
+
+    street_spans: known streets in the text (from Deduce's street list). A name match
+    inside a longer street ("Willem" in "Prins Willem-Alexanderstraat") is skipped, so
+    Deduce can replace the whole street with its house number.
     """
     if is_na(text):
         return text
@@ -640,6 +650,7 @@ def vervang_gemiste_namen_multi_any(
     out = str(text)
     types = order if order is not None else list(patterns_by_type.keys())
     code_spans = [m.span() for m in _CODE_PATTERN.finditer(out)]
+    street_spans = list(street_spans)
 
     candidates = []
     for rank, t in enumerate(types):
@@ -652,6 +663,8 @@ def vervang_gemiste_namen_multi_any(
             if any(a < end and start < b for a, b in code_spans):
                 continue
             if isinstance(pat, NameAliasPattern):
+                if any(a <= start and end <= b and b - a > end - start for a, b in street_spans):
+                    continue  # part of a longer street name
                 canonical = _alias_canonical(pat, out, m, True)
                 if canonical is None:
                     continue

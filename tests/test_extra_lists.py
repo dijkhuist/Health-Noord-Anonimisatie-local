@@ -121,6 +121,20 @@ class ExtraListMatchingTests(unittest.TestCase):
             "<PERSOON_001> belde. <LOCATIE_003> en <LOCATIE_001>.",
         )
 
+    def test_first_name_inside_a_known_street_is_left_for_deduce(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "patienten.txt"
+            path.write_text("Willem Bakker\nJan Steen\n", encoding="utf-8")
+            patterns = build_extra_patterns(extra_names_paths={"patient": str(path)})
+
+        text = "Prins Willem-Alexanderstraat 3. Willem belde. Jan Steen kwam."
+        street = text.index("Prins"), text.index(" 3.")
+        jan_steen = text.index("Jan"), text.index(" kwam")  # a street too, but no longer than the name
+        result = vervang_gemiste_namen_multi_any(
+            text, patterns, ExtraNamesContext(), street_spans=[street, jan_steen]
+        )
+        self.assertEqual(result, "Prins Willem-Alexanderstraat 3. <PERSOON_001> belde. <PERSOON_002> kwam.")
+
     def test_place_is_not_extended_with_a_number(self):
         result = anonymize("In Amsterdam 2024 en Heerenveen 12 keer.", locations="Amsterdam\nHeerenveen\n")
         self.assertEqual(result, "In <LOCATIE_001> 2024 en <LOCATIE_002> 12 keer.")

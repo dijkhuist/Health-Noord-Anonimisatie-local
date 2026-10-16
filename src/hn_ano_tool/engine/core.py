@@ -19,6 +19,7 @@ from src.hn_ano_tool.engine.utils import (
     COMMON_WORDS,
     ExtraNamesContext,
     NameAliasPattern,
+    is_street,
     vervang_gemiste_namen_multi_any,
 )
 
@@ -161,6 +162,31 @@ class Anonymizer:
         if buf:
             yield "".join(buf)
 
+    def _street_spans(self, text) -> list[tuple[int, int]]:
+        """
+        Spans of streets from Deduce's street list (BAG) that end in a street suffix,
+        such as "Prins Willem-Alexanderstraat". A street that is just a name
+        ("Jan Steen") is left out, so it never shields a listed person.
+        Skipped when locations are not anonymized, or if Deduce lacks the structures.
+        """
+        if "locations" in (self.disabled or set()):
+            return []
+        try:
+            streets = self.deduce.lookup_structs["street"]
+            tokens = list(self.deduce.tokenizers["default"].tokenize(text))
+        except (AttributeError, KeyError, TypeError):
+            return []
+
+        words = [token.text for token in tokens]
+        spans = []
+        for i in range(len(tokens)):
+            match = streets.longest_matching_prefix(words[i:])
+            if match:
+                start, end = tokens[i].start_char, tokens[i + len(match) - 1].end_char
+                if is_street(text[start:end]):
+                    spans.append((start, end))
+        return spans
+
     def _redact_mg_postcodes(self, text, redactor, stats) -> str:
         """
         Deduce skips postcodes ending in "MG" (it reads them as milligrams). Treat four
@@ -192,6 +218,7 @@ class Anonymizer:
                 patterns_by_type=self.extra_names_patterns,
                 ctx=extra_ctx,
                 order=["persoon", "locatie"],
+                street_spans=self._street_spans(protected_text),
             )
             protected_text, listed_codes = protect_whitelist_terms(protected_text, _PSEUDONYM_PATTERN)
 
