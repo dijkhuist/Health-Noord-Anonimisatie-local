@@ -1,9 +1,9 @@
 """
-Make a synthetic test set that mimics the format of a care-notes export (such as
-Care_data.txt) without any real data.
+Make a synthetic test set that mimics the format of an EPD export of care notes,
+without any real data.
 
 Output (default: testdata/synthetisch/):
-  care_data_synthetisch.txt  UTF-16 LE with BOM, CRLF, "objectId<TAB>comment",
+  epd_synthetisch.txt        UTF-16 LE with BOM, CRLF, "objectId<TAB>comment",
                              multi-line notes in double quotes, ~46% empty notes
   patienten.txt, medewerkers.txt, locaties.txt, whitelist.txt   (UTF-8)
   sleutel.json               per record: the sensitive strings and the trap words
@@ -262,7 +262,7 @@ def main() -> int:
         writer.writerow(row)
     # Inside a quoted multi-line note, the export uses CRLF too.
     data = buffer.getvalue().replace("\r\n", "\n").replace("\n", "\r\n")
-    (out / "care_data_synthetisch.txt").write_bytes("﻿".encode("utf-16-le") + data.encode("utf-16-le"))
+    (out / "epd_synthetisch.txt").write_bytes("﻿".encode("utf-16-le") + data.encode("utf-16-le"))
 
     (out / "patienten.txt").write_text("\n".join(p["full"] for p in patients) + "\n", encoding="utf-8")
     (out / "medewerkers.txt").write_text("\n".join(p["full"] for p in staff) + "\n", encoding="utf-8")

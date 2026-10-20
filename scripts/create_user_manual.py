@@ -261,9 +261,10 @@ def build_manual() -> Path:
         "6. Resultaten en logbestand",
         "7. Extra lijsten en whitelist",
         "8. Instellingen onthouden",
-        "9. Privacy en veilig gebruik",
-        "10. Problemen oplossen",
-        "11. Controlelijst voor vrijgave",
+        "9. Oefenen en testen met synthetische data",
+        "10. Privacy en veilig gebruik",
+        "11. Problemen oplossen",
+        "12. Controlelijst voor vrijgave",
     ]:
         add_bullet(document, item)
     document.add_page_break()
@@ -472,7 +473,44 @@ def build_manual() -> Path:
         "De tool bewaart de filterkeuzes. De andere keuzes worden bewust nooit onthouden; selecteer dit voor iedere run opnieuw."
     )
 
-    document.add_heading("9. Privacy en veilig gebruik", level=1)
+    document.add_heading("9. Oefenen en testen met synthetische data", level=1)
+    document.add_paragraph(
+        "Bij de tool hoort een synthetische testset: een nagemaakte EPD-export met zorgnotities waarin alle personen, adressen, "
+        "telefoonnummers, e-mailadressen, BSN's en datums verzonnen zijn. Het bestand heeft hetzelfde formaat als een echte export "
+        "(tabgescheiden met de kolommen objectId en comment, meerregelige notities en ongeveer de helft lege notities). "
+        "Je kunt er veilig mee oefenen, een demonstratie geven of controleren hoe goed de tool werkt, zonder echte gegevens te gebruiken."
+    )
+    add_table(
+        document,
+        ["Bestand (map testdata\\synthetisch)", "Inhoud"],
+        [
+            ["epd_synthetisch.txt", "Invoerbestand met 1000 records, waarvan ongeveer 550 met een zorgnotitie."],
+            ["patienten.txt", "150 verzonnen patiëntnamen, voor de patiëntenlijst."],
+            ["medewerkers.txt", "40 verzonnen medewerkersnamen, voor de medewerkerslijst."],
+            ["locaties.txt", "Straatnamen, voor de locatielijst."],
+            ["whitelist.txt", "Enkele medische termen die moeten blijven staan."],
+            ["sleutel.json", "Antwoordsleutel: per notitie welke gegevens gevoelig zijn en welke gewone woorden moeten blijven staan."],
+        ],
+    )
+    document.add_heading("Oefenen met de testset", level=2)
+    add_number(document, "Kies bij Invoer .txt het bestand epd_synthetisch.txt en kies een uitvoermap.")
+    add_number(document, "Kies eventueel patienten.txt, medewerkers.txt, locaties.txt en whitelist.txt bij de optionele bestanden.")
+    add_number(document, "Klik op Anonimiseer bestand en bekijk het resultaat en het logbestand.")
+    add_number(document, "Draai de testset ook eens zonder lijsten en vergelijk het resultaat: zo zie je wat de extra lijsten toevoegen.")
+    document.add_paragraph(
+        "In de notities zitten bewust lastige gevallen: namen met en zonder titel, voorletters, tussenvoegsels en dubbele achternamen, "
+        "familieleden die niet in de lijsten staan, adressen met huisnummer en postcode, datums met en zonder jaartal, en gewone woorden "
+        "die op een naam lijken (zoals 'Linker been' of 'Meer pijn'). Die gewone woorden horen na anonimisering te blijven staan."
+    )
+    add_callout(
+        document,
+        "Voor technisch beheer",
+        "Het script scripts\\evaluate_testset.py draait de tool op de testset en telt met de antwoordsleutel per soort gegeven hoeveel er "
+        "nog in de uitvoer staat. Met scripts\\make_synthetic_testset.py maak je een nieuwe testset; met de optie --seed een andere variant. "
+        "Gebruik de testset na elke wijziging van de tool om te controleren dat de anonimisering niet slechter is geworden.",
+    )
+
+    document.add_heading("10. Privacy en veilig gebruik", level=1)
     add_bullet(document, "De verwerking gebeurt lokaal op de computer; tekst wordt niet naar een cloudservice gestuurd.")
     add_bullet(document, "Logs bevatten geen tekstfragmenten, whitelisttermen, lijstinhoud of volledige bestandspaden.")
     add_bullet(document, "Bestandsnamen en vervangingstellingen kunnen nog steeds operationele informatie onthullen; deel logs daarom alleen met bevoegde personen.")
@@ -486,7 +524,7 @@ def build_manual() -> Path:
         warning=True,
     )
 
-    document.add_heading("10. Problemen oplossen", level=1)
+    document.add_heading("11. Problemen oplossen", level=1)
     add_table(
         document,
         ["Melding of situatie", "Mogelijke oorzaak en oplossing"],
@@ -503,7 +541,7 @@ def build_manual() -> Path:
         ],
     )
 
-    document.add_heading("11. Controlelijst voor vrijgave", level=1)
+    document.add_heading("12. Controlelijst voor vrijgave", level=1)
     for item in [
         "Is het juiste invoerbestand geselecteerd en is de naam/grootte in de voorcontrole correct?",
         "Zijn alleen noodzakelijke extra lijsten geselecteerd?",

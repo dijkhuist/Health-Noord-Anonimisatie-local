@@ -46,7 +46,7 @@ def main() -> int:
         "locatie": str(d / "locaties.txt"),
     }
     settings = Settings(
-        input_file=str(d / "care_data_synthetisch.txt"),
+        input_file=str(d / "epd_synthetisch.txt"),
         output_dir=str(d / "uitvoer"),
         log_dir=None,
         extra_names_paths=lists,

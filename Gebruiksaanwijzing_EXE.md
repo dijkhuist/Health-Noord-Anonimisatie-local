@@ -90,6 +90,16 @@ Filterkeuzes worden lokaal onthouden. Bestandspaden worden niet onthouden: selec
 
 Het log bevat de runstatus, starttijd en duur, invoernaam en grootte, de actieve en uitgeschakelde filtergroepen (elk op een eigen regel), of whitelist/extra lijsten zijn gebruikt, en vervangingstotalen apart voor Deduce en extra lijsten plus aantallen per type. Ook mislukte en geannuleerde runs krijgen een log; gedeeltelijke uitvoer wordt niet bewaard. Logs bevatten geen volledige paden, bronfragmenten, whitelist-termen of lijstinhoud.
 
+## Oefenen en testen met synthetische data
+
+In de map `testdata\synthetisch` staat een synthetische testset: een nagemaakte EPD-export (`epd_synthetisch.txt`) met zorgnotities waarin alle personen, adressen, telefoonnummers, e-mailadressen, BSN's en datums verzonnen zijn. Het formaat is gelijk aan een echte export. Gebruik deze set om te oefenen, voor een demonstratie of om te controleren hoe goed de tool werkt, zonder echte gegevens.
+
+- `epd_synthetisch.txt`: invoerbestand (1000 records, ongeveer 550 met een notitie)
+- `patienten.txt`, `medewerkers.txt`, `locaties.txt`, `whitelist.txt`: bijpassende lijsten
+- `sleutel.json`: antwoordsleutel met per notitie de gevoelige gegevens en de gewone woorden die moeten blijven staan
+
+Kies `epd_synthetisch.txt` als invoerbestand en eventueel de lijsten en de whitelist, en klik op **Anonimiseer bestand**. Draai de set ook eens zonder lijsten om het verschil te zien. Voor technisch beheer: `scripts\evaluate_testset.py` telt per soort gegeven wat er nog in de uitvoer staat; `scripts\make_synthetic_testset.py` maakt een nieuwe testset (`--seed` voor een andere variant).
+
 ## Praktische tips
 
 - Controleer de output steekproefsgewijs (AVG/GDPR): ook met volledige extra lijsten is er geen 100% garantie.
