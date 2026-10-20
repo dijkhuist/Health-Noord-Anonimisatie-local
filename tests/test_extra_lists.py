@@ -135,6 +135,22 @@ class ExtraListMatchingTests(unittest.TestCase):
         )
         self.assertEqual(result, "Prins Willem-Alexanderstraat 3. <PERSOON_001> belde. <PERSOON_002> kwam.")
 
+    def test_lone_listed_name_next_to_an_unlisted_name_is_left_for_deduce(self):
+        result = anonymize(
+            "Contactpersoon: Klaas van der Arts, zoon. Klaas belde. Mw Bakker en HA Klaas kwamen. "
+            "Dochter Femke van de Velde.",
+            patients="Klaas Postma\nAnna Bakker\nJan de Velde\n",
+        )
+        self.assertEqual(
+            result,
+            "Contactpersoon: Klaas van der Arts, zoon. <PERSOON_001> belde. Mw <PERSOON_002> en HA <PERSOON_001> kwamen. "
+            "Dochter Femke van de Velde.",
+        )
+
+    def test_lone_listed_name_in_a_double_surname_takes_the_whole_surname(self):
+        result = anonymize("Zoon Piet Bakker-Meer belde. Ook Smit-de Jong.", patients="Anna Bakker\nJan Smit\n")
+        self.assertEqual(result, "Zoon Piet <PERSOON_001> belde. Ook <PERSOON_002>.")
+
     def test_place_is_not_extended_with_a_number(self):
         result = anonymize("In Amsterdam 2024 en Heerenveen 12 keer.", locations="Amsterdam\nHeerenveen\n")
         self.assertEqual(result, "In <LOCATIE_001> 2024 en <LOCATIE_002> 12 keer.")

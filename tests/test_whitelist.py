@@ -142,6 +142,22 @@ class WhitelistTests(unittest.TestCase):
         self.assertEqual(stats.by_type["locatie"], 2)
         self.assertEqual(without_locations.anonymize(text)[0], text)
 
+    def test_date_without_year_is_redacted_unless_dates_are_off(self):
+        class NoOpDeduce:
+            def deidentify(self, text, enabled=None, disabled=None):
+                return SimpleNamespace(annotations=[])
+
+        with patch("src.hn_ano_tool.engine.core.get_deduce", return_value=NoOpDeduce()):
+            anonymizer = Anonymizer()
+            without_dates = Anonymizer(disabled={"dates"})
+
+        text = "Afspraak op 9 mei, daarna 27 okt. en 3 Juni; 40 mg en 12 meiden niet."
+        output, stats = anonymizer.anonymize(text)
+
+        self.assertEqual(output, "Afspraak op [DATUM-1], daarna [DATUM-2] en [DATUM-3]; 40 mg en 12 meiden niet.")
+        self.assertEqual(stats.by_type["datum"], 3)
+        self.assertEqual(without_dates.anonymize(text)[0], text)
+
     def test_whitelist_wins_for_one_word_name_that_is_an_everyday_word(self):
         class NoOpDeduce:
             lookup_structs = {"whitelist": {"zondag"}}

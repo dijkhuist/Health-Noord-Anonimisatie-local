@@ -668,12 +668,31 @@ def vervang_gemiste_namen_multi_any(
                 canonical = _alias_canonical(pat, out, m, True)
                 if canonical is None:
                     continue
+                neighbour = None
+                if term_key(m.group(0)) in pat.capitalized_only:
+                    wider = _extend_double_surname(out, start, end)
+                    if wider != (start, end):
+                        # "Smit" in "Smit-Jong": the double surname is one (other) name.
+                        start, end = wider
+                        canonical = out[start:end]
+                    else:
+                        neighbour = _neighbouring_name(out, start, end)
+                candidates.append((start, start - end, rank, end, t, canonical, neighbour))
             else:
                 canonical = _HOUSE_NUMBER_TAIL.sub("", m.group(0))  # one street, one code
-            candidates.append((start, start - end, rank, end, t, canonical))
+                candidates.append((start, start - end, rank, end, t, canonical, None))
+
+    # A lone listed name next to another name part is left to Deduce ("Klaas van der
+    # Arts"): replacing only the listed part would rob Deduce of the context it needs
+    # for the rest. Unless that other part is itself replaced by a list ("Wil Heinstra").
+    spans = [(c[0], c[3]) for c in candidates]
+    candidates = [
+        c for c in candidates
+        if c[6] is None or any(a < c[6][1] and c[6][0] < b and (a, b) != (c[0], c[3]) for a, b in spans)
+    ]
 
     pieces, position = [], 0
-    for start, _negative_length, _rank, end, t, canonical in sorted(candidates):
+    for start, _negative_length, _rank, end, t, canonical, _neighbour in sorted(candidates):
         if start < position:
             continue  # overlaps a longer (or earlier) match
         t_norm = ctx.normalize_type(t)
@@ -683,6 +702,48 @@ def vervang_gemiste_namen_multi_any(
         position = end
     pieces.append(out[position:])
     return "".join(pieces)
+
+
+_TUSSEN_RE = r"(?:(?:van|de|der|den|ter|ten|het|te|op|in|'t|’t)\s+)*"
+# A capitalized word (optionally after tussenvoegsels) right after a match ...
+_NAME_AFTER = re.compile(rf"\s+{_TUSSEN_RE}(?-i:[A-Z])[\w'’]+", re.IGNORECASE)
+# ... or a capitalized word (optionally before tussenvoegsels) right before it.
+_NAME_BEFORE = re.compile(rf"(?-i:[A-Z])[\w'’]*\s+{_TUSSEN_RE}$", re.IGNORECASE)
+# Other parts of a double surname joined by a hyphen: "Smit-Jong", "Bakker-de Wit".
+_HYPHEN_AFTER = re.compile(r"(?:[-‐‑–](?:(?:de|van|der|den|ter)\s+)*[A-Z][\w'’]+)+")
+_HYPHEN_BEFORE = re.compile(r"(?:[A-Z][\w'’]+[-‐‑–])+$")
+
+
+def _extend_double_surname(text: str, start: int, end: int) -> tuple[int, int]:
+    """Grow a match over the other parts of a hyphenated double surname."""
+    after = _HYPHEN_AFTER.match(text, end)
+    if after:
+        end = after.end()
+    before = _HYPHEN_BEFORE.search(text, 0, start)
+    if before and before.end() == start:
+        start = before.start()
+    return start, end
+
+
+def _neighbouring_name(text: str, start: int, end: int) -> Optional[tuple[int, int]]:
+    """
+    The span of another name part right next to a lone first or last name from a list
+    ("van der Arts" next to "Klaas", "Femke" next to "de Velde"), or None. A title, a
+    role abbreviation ("HA", "EVV'er") or a word at a sentence start before the match
+    does not count as a name.
+    """
+    after = _NAME_AFTER.match(text, end)
+    if after:
+        return after.span()
+    before = _NAME_BEFORE.search(text, 0, start)
+    if not before or before.end() != start:
+        return None
+    word = before.group(0).split()[0]
+    if word.casefold() in TITLE_WORDS_CF or re.split(r"['’]", word)[0].isupper():
+        return None
+    if _at_sentence_start(text, before.start(), True):
+        return None
+    return before.span()
 
 
 # Codes already in the text: Deduce's "[PERSOON-1]" and the extra lists' "<PERSOON_001>".

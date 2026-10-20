@@ -42,6 +42,14 @@ _PSEUDONYM_PATTERN = re.compile(r"<[A-Z_]+_\d{3,}>")
 # Dutch postcode with the letters "MG" in capitals; Deduce leaves these out.
 _MG_POSTCODE = re.compile(r"(?<![\w-])[1-9]\d{3} ?MG(?!\w)")
 
+# A day and month without a year ("9 mei", "27 okt."); Deduce only finds dates with a year.
+_DATE_WITHOUT_YEAR = re.compile(
+    r"(?<![\w-])(?:[1-9]|[12]\d|3[01])\s+"
+    r"(?:januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december"
+    r"|jan|feb|mrt|apr|jun|jul|aug|sep|sept|okt|nov|dec)(?:\.|(?!\w))",
+    re.IGNORECASE,
+)
+
 
 def runtime_resource_path(relative_path: str) -> str:
     base_path = getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1])
@@ -202,6 +210,17 @@ class Anonymizer:
 
         return _MG_POSTCODE.sub(replace, text)
 
+    def _redact_dates_without_year(self, text, redactor, stats) -> str:
+        """Replace "9 mei" / "27 okt." with a date code; Deduce needs a year to see a date."""
+        if "dates" in (self.disabled or set()):
+            return text
+
+        def replace(match):
+            stats.by_type["datum"] = stats.by_type.get("datum", 0) + 1
+            return redactor.code_for("datum", match.group(0))
+
+        return _DATE_WITHOUT_YEAR.sub(replace, text)
+
     def _process_chunk(self, chunk_text, redactor, extra_ctx, stats) -> str:
         protected_text, protected_terms = protect_whitelist_terms(
             chunk_text, self.whitelist_pattern
@@ -227,6 +246,7 @@ class Anonymizer:
         )
         out = redactor.redact(protected_text, doc.annotations)
         out = self._redact_mg_postcodes(out, redactor, stats)
+        out = self._redact_dates_without_year(out, redactor, stats)
 
         out = restore_whitelist_terms(out, listed_codes)
         out = restore_whitelist_terms(out, protected_terms)

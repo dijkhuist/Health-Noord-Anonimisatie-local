@@ -45,3 +45,6 @@ bundled_assets/deduce_cache/
 # Optional: if you generate output/log folders locally
 output/
 logs/
+
+# Output of scripts/evaluate_testset.py
+testdata/synthetisch/uitvoer/

@@ -440,7 +440,7 @@ def build_manual() -> Path:
         "Alle lijsten worden in één keer doorlopen en de langste treffer wint, zodat een straat uit de locatielijst voorgaat op een voornaam. "
         "Bij een straat uit de locatielijst wordt het huisnummer meegenomen, ook met toevoeging ('12a', '258-K'). Een locatie wordt alleen als hele regel herkend; "
         "zet varianten daarom als aparte regels in de lijst. Een postcode op 'MG' in hoofdletters ('9257MG'), die Deduce overslaat, wordt als locatie vervangen; "
-        "'1000 mg' in kleine letters blijft staan als dosering. "
+        "'1000 mg' in kleine letters blijft staan als dosering. Ook een datum zonder jaartal ('9 mei', '27 okt.') wordt vervangen. "
         "De tool kan personen pseudonimiseren met consistente placeholders en telt extra vervangingen afzonderlijk in het log."
     )
     document.add_paragraph(
